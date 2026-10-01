@@ -19,9 +19,69 @@ public class DataInitializer implements CommandLineRunner {
     @PersistenceContext
     private EntityManager em;
 
+    private FacturaVenta crearFactura(Long numero, LocalDate fecha, String estado, Cliente cliente,
+                                      PuntoVenta puntoVenta, CondicionIva condicionIva, TipoMoneda tipoMoneda,
+                                      ListaPrecioArticulo listaPrecioArticulo, Usuario admin,
+                                      double... cantidades) {
+        FacturaVenta f = new FacturaVenta();
+        f.setNumero(numero);
+        f.setFechaEmision(fecha);
+        f.setPuntoVenta(puntoVenta);
+        f.setCliente(cliente);
+        f.setCondicionIva(condicionIva);
+        f.setTipoMoneda(tipoMoneda);
+        f.setEstado(estado);
+
+        double total = 0;
+        for (double cantidad : cantidades) {
+            double subtotal = cantidad * listaPrecioArticulo.getPrecioVenta();
+            FacturaVentaDetalle d = new FacturaVentaDetalle();
+            d.setListaPrecioArticulo(listaPrecioArticulo);
+            d.setDescripcion(listaPrecioArticulo.getArticulo().getDenominacion());
+            d.setCantidad(cantidad);
+            d.setPrecioUnitario(listaPrecioArticulo.getPrecioVenta());
+            d.setPorcentajeBonificacion(0);
+            d.setImporteNeto(subtotal);
+            d.setImporteIva(0);
+            d.setImporteSubtotal(subtotal);
+            f.addDetalle(d);
+            total += subtotal;
+        }
+        f.setImporteTotal(total);
+
+        if ("ANULADA".equals(estado)) {
+            f.setImporteCobrado(0);
+            f.setImporteSaldo(0);
+            f.setFechaAnulacion(fecha.plusDays(1));
+            f.setObservaciones("Factura anulada de prueba");
+        } else {
+            f.setImporteCobrado(total);
+            f.setImporteSaldo(0);
+            f.setCae("7000000000" + numero);
+            f.setCaeFechaVencimiento(fecha.plusDays(10));
+            f.setResultadoAfip("A");
+            f.setObservaciones("Factura de prueba");
+        }
+
+        f.setFechaAlta(LocalDate.now());
+        f.setFechaModificacion(LocalDate.now());
+        f.setUsuarioCarga(admin);
+        f.setUsuarioModificacion(admin);
+
+        em.persist(f);
+        return f;
+    }
+
     @Override
     @Transactional
     public void run(String... args) throws Exception {
+
+        // Evita duplicar los datos de prueba en cada arranque
+        Long facturasCargadas = em.createQuery("SELECT COUNT(f) FROM FacturaVenta f", Long.class).getSingleResult();
+        if (facturasCargadas > 0) {
+            System.out.println("Datos de prueba ya cargados: se omite la carga inicial.");
+            return;
+        }
 
         // ==========================
         // USUARIO (Auditoría)
@@ -260,6 +320,43 @@ public class DataInitializer implements CommandLineRunner {
 
         em.persist(factura);
 
+        // ==========================
+        // FACTURAS ADICIONALES (para probar filtros y reportes)
+        // ==========================
+        Contacto contactoTech = new Contacto();
+        contactoTech.setEmail("ventas@empresatech.com");
+        contactoTech.setTelefono("2614000000");
+        contactoTech.setCelular("2615000000");
+        em.persist(contactoTech);
+
+        Domicilio domicilioTech = new Domicilio();
+        domicilioTech.setNombreCalle("Las Heras");
+        domicilioTech.setNumeroCalle("1200");
+        em.persist(domicilioTech);
+
+        Cliente clienteTech = new Cliente();
+        clienteTech.setCuitCuil("30-71234567-8");
+        clienteTech.setDenominacion("Empresa Tech S.A.");
+        clienteTech.setContacto(contactoTech);
+        clienteTech.setDomicilio(domicilioTech);
+        clienteTech.setFechaAlta(LocalDate.now());
+        clienteTech.setFechaModificacion(LocalDate.now());
+        clienteTech.setUsuarioCarga(admin);
+        clienteTech.setUsuarioModificacion(admin);
+        em.persist(clienteTech);
+
+        // 5 ítems, cliente empresa, hace 30 días
+        crearFactura(1002L, LocalDate.now().minusDays(30), "EMITIDA", clienteTech,
+                puntoVenta, condicionIva, tipoMoneda, listaPrecioArticulo, admin, 1, 2, 1, 3, 2);
+
+        // Sin cliente (Consumidor Final), anulada, hace 10 días
+        crearFactura(1003L, LocalDate.now().minusDays(10), "ANULADA", null,
+                puntoVenta, condicionIva, tipoMoneda, listaPrecioArticulo, admin, 1);
+
+        // Sin cliente (Consumidor Final), emitida, hace 2 días
+        crearFactura(1004L, LocalDate.now().minusDays(2), "EMITIDA", null,
+                puntoVenta, condicionIva, tipoMoneda, listaPrecioArticulo, admin, 1, 1, 1);
+
         System.out.println("==================================");
         System.out.println("FACTURA GUARDADA CORRECTAMENTE");
         System.out.println("Número: " + factura.getNumero());
@@ -284,7 +381,9 @@ public class DataInitializer implements CommandLineRunner {
         System.out.println("\n================ LISTADO DETALLADO ================");
         for (FacturaVenta f : f1) {
             System.out.println("Factura N°: " + f.getNumero() + " | Fecha: " + f.getFechaEmision() + " | Estado: " + f.getEstado());
-            System.out.println("Cliente: " + f.getCliente().getDenominacion() + " (CUIT: " + f.getCliente().getCuitCuil() + ")");
+            System.out.println("Cliente: " + (f.getCliente() != null
+                    ? f.getCliente().getDenominacion() + " (CUIT: " + f.getCliente().getCuitCuil() + ")"
+                    : "Consumidor Final"));
             System.out.println("Punto de Venta: " + f.getPuntoVenta().getDescripcion());
             System.out.println("Condición IVA: " + f.getCondicionIva().getDenominacion());
 

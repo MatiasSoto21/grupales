@@ -31,3 +31,7 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Credenciales locales y salidas de consola ###
+src/main/resources/db-local.properties
+salida.txt
