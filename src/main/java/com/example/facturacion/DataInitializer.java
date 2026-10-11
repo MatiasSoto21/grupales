@@ -19,34 +19,655 @@ public class DataInitializer implements CommandLineRunner {
     @PersistenceContext
     private EntityManager em;
 
-    private FacturaVenta crearFactura(Long numero, LocalDate fecha, String estado, Cliente cliente,
-                                      PuntoVenta puntoVenta, CondicionIva condicionIva, TipoMoneda tipoMoneda,
-                                      ListaPrecioArticulo listaPrecioArticulo, Usuario admin,
-                                      double... cantidades) {
+    // =========================================================
+    // INICIALIZADOR
+    // =========================================================
+
+    @Override
+    @Transactional
+    public void run(String... args) {
+
+        Long cantidad = em.createQuery(
+                "SELECT COUNT(f) FROM FacturaVenta f", Long.class
+        ).getSingleResult();
+
+        if (cantidad > 0) {
+            System.out.println(
+                    "Ya existen facturas. Se omite la carga inicial."
+            );
+            return;
+        }
+
+        LocalDate hoy = LocalDate.now();
+
+        // =====================================================
+        // USUARIO ADMIN
+        // =====================================================
+
+        List<Usuario> administradores = em.createQuery(
+                        "SELECT u FROM Usuario u WHERE u.usuario = :usuario",
+                        Usuario.class
+                )
+                .setParameter("usuario", "admin")
+                .setMaxResults(1)
+                .getResultList();
+
+        Usuario admin;
+
+        if (administradores.isEmpty()) {
+            admin = new Usuario();
+            admin.setUsuario("admin");
+            admin.setClave("1234");
+            admin.setNombre("Matias");
+            admin.setApellido("Soto");
+
+            em.persist(admin);
+            em.flush();
+        } else {
+            admin = administradores.get(0);
+        }
+
+        // =====================================================
+        // CONDICIONES DE IVA
+        // =====================================================
+
+        List<CondicionIva> condicionesIva = new ArrayList<>();
+
+        CondicionIva responsableInscripto = crearCondicionIva(
+                1, "IVA Responsable Inscripto", admin
+        );
+        condicionesIva.add(responsableInscripto);
+
+        CondicionIva exento = crearCondicionIva(
+                4, "IVA Sujeto Exento", admin
+        );
+        condicionesIva.add(exento);
+
+        CondicionIva consumidorFinal = crearCondicionIva(
+                5, "Consumidor Final", admin
+        );
+        condicionesIva.add(consumidorFinal);
+
+        CondicionIva monotributista = crearCondicionIva(
+                6, "Monotributista", admin
+        );
+        condicionesIva.add(monotributista);
+
+        // =====================================================
+        // MONEDA
+        // =====================================================
+
+        TipoMoneda moneda = new TipoMoneda();
+        moneda.setCodigoAfip("PES");
+        moneda.setDenominacion("Pesos Argentinos");
+        moneda.setSimbolo("$");
+
+        auditar(moneda, admin);
+        em.persist(moneda);
+
+        // =====================================================
+        // PUNTOS DE VENTA
+        // =====================================================
+
+        List<PuntoVenta> puntosVenta = new ArrayList<>();
+
+        puntosVenta.add(crearPuntoVenta(
+                1,
+                "Casa Central",
+                "Manual",
+                "San Martin 123",
+                admin
+        ));
+
+        puntosVenta.add(crearPuntoVenta(
+                2,
+                "Sucursal 1",
+                "Manual",
+                "Av. Las Heras 450",
+                admin
+        ));
+
+        puntosVenta.add(crearPuntoVenta(
+                3,
+                "Sucursal 2",
+                "Manual",
+                "Av. San Martin 1800",
+                admin
+        ));
+
+        // =====================================================
+        // MARCAS
+        // =====================================================
+
+        Marca cocaCola = crearMarca(100, "Coca Cola", admin);
+        Marca pepsi = crearMarca(200, "Pepsi", admin);
+        Marca sprite = crearMarca(300, "Sprite", admin);
+        Marca fanta = crearMarca(400, "Fanta", admin);
+        Marca villavicencio = crearMarca(500, "Villavicencio", admin);
+        Marca cepita = crearMarca(600, "Cepita", admin);
+
+        // =====================================================
+        // RUBROS
+        // =====================================================
+
+        Rubro gaseosas = crearRubro(10, "Bebidas", admin);
+        Rubro aguas = crearRubro(20, "Aguas", admin);
+        Rubro jugos = crearRubro(30, "Jugos", admin);
+        Rubro energizantes = crearRubro(40, "Energizantes", admin);
+
+        // =====================================================
+        // ARTICULOS
+        // =====================================================
+
+        Articulo coca500 = crearArticulo(
+                "COCA500", "Coca Cola 500 ml",
+                cocaCola, gaseosas, admin
+        );
+
+        // Pepsi queda sin facturar para probar la consulta 21.
+        crearArticulo(
+                "PEPSI500", "Pepsi 500 ml",
+                pepsi, gaseosas, admin
+        );
+
+        Articulo coca2250 = crearArticulo(
+                "COCA2250", "Coca Cola 2.25 L",
+                cocaCola, gaseosas, admin
+        );
+
+        Articulo sprite500 = crearArticulo(
+                "SPRITE500", "Sprite 500 ml",
+                sprite, gaseosas, admin
+        );
+
+        Articulo sprite1500 = crearArticulo(
+                "SPRITE1500", "Sprite 1.5 L",
+                sprite, gaseosas, admin
+        );
+
+        Articulo fanta500 = crearArticulo(
+                "FANTA500", "Fanta naranja 500 ml",
+                fanta, gaseosas, admin
+        );
+
+        Articulo fanta1500 = crearArticulo(
+                "FANTA1500", "Fanta naranja 1.5 L",
+                fanta, gaseosas, admin
+        );
+
+        Articulo agua500 = crearArticulo(
+                "AGUA500", "Agua mineral 500 ml",
+                villavicencio, aguas, admin
+        );
+
+        Articulo agua1500 = crearArticulo(
+                "AGUA1500", "Agua mineral 1.5 L",
+                villavicencio, aguas, admin
+        );
+
+        Articulo jugoNaranja = crearArticulo(
+                "JUGONAR1L", "Jugo de naranja 1 L",
+                cepita, jugos, admin
+        );
+
+        Articulo jugoMulti = crearArticulo(
+                "JUGOMULTI", "Jugo multifruta 1 L",
+                cepita, jugos, admin
+        );
+
+        Articulo energetica = crearArticulo(
+                "ENERG473", "Bebida energetica 473 ml",
+                cocaCola, energizantes, admin
+        );
+
+        // =====================================================
+        // LISTA DE PRECIOS
+        // =====================================================
+
+        ListaPrecio listaPrecio = new ListaPrecio();
+        listaPrecio.setCodigo("LP01");
+        listaPrecio.setDenominacion("Lista General");
+
+        auditar(listaPrecio, admin);
+        em.persist(listaPrecio);
+
+        List<ListaPrecioArticulo> productos = new ArrayList<>();
+
+        productos.add(crearPrecio(
+                listaPrecio, coca500, 2500, admin
+        ));
+
+        productos.add(crearPrecio(
+                listaPrecio, coca2250, 4200, admin
+        ));
+
+        productos.add(crearPrecio(
+                listaPrecio, sprite500, 2300, admin
+        ));
+
+        productos.add(crearPrecio(
+                listaPrecio, sprite1500, 3900, admin
+        ));
+
+        productos.add(crearPrecio(
+                listaPrecio, fanta500, 2200, admin
+        ));
+
+        productos.add(crearPrecio(
+                listaPrecio, fanta1500, 3800, admin
+        ));
+
+        productos.add(crearPrecio(
+                listaPrecio, agua500, 1200, admin
+        ));
+
+        productos.add(crearPrecio(
+                listaPrecio, agua1500, 2100, admin
+        ));
+
+        productos.add(crearPrecio(
+                listaPrecio, jugoNaranja, 1800, admin
+        ));
+
+        productos.add(crearPrecio(
+                listaPrecio, jugoMulti, 1950, admin
+        ));
+
+        productos.add(crearPrecio(
+                listaPrecio, energetica, 2800, admin
+        ));
+
+        // =====================================================
+        // CLIENTES
+        // =====================================================
+
+        List<Cliente> clientes = new ArrayList<>();
+
+        clientes.add(crearCliente(
+                "20-12345678-9",
+                "Juan Perez",
+                "juan.perez@gmail.com",
+                "2614567890",
+                "2615555555",
+                "Belgrano", "450", admin
+        ));
+
+        clientes.add(crearCliente(
+                "30-71234567-8",
+                "Empresa Tech S.A.",
+                "ventas@empresatech.com",
+                "2614000000",
+                "2615000000",
+                "Las Heras", "1200", admin
+        ));
+
+        clientes.add(crearCliente(
+                "27-23456789-4",
+                "Maria Gonzalez",
+                "maria.gonzalez@gmail.com",
+                "2614100001",
+                "2615100001",
+                "San Martin", "235", admin
+        ));
+
+        clientes.add(crearCliente(
+                "20-34567890-1",
+                "Carlos Rodriguez",
+                "carlos.rodriguez@gmail.com",
+                "2614100002",
+                "2615100002",
+                "Colon", "780", admin
+        ));
+
+        clientes.add(crearCliente(
+                "27-45678901-2",
+                "Lucia Fernandez",
+                "lucia.fernandez@gmail.com",
+                "2614100003",
+                "2615100003",
+                "Rivadavia", "340", admin
+        ));
+
+        clientes.add(crearCliente(
+                "30-72345678-9",
+                "Distribuidora Cuyo S.A.",
+                "ventas@distribuidoracuyo.com",
+                "2614100004",
+                "2615100004",
+                "Mitre", "1500", admin
+        ));
+
+        clientes.add(crearCliente(
+                "20-56789012-3",
+                "Diego Martinez",
+                "diego.martinez@gmail.com",
+                "2614100005",
+                "2615100005",
+                "Belgrano", "920", admin
+        ));
+
+        clientes.add(crearCliente(
+                "27-67890123-5",
+                "Sofia Lopez",
+                "sofia.lopez@gmail.com",
+                "2614100006",
+                "2615100006",
+                "San Juan", "670", admin
+        ));
+
+        clientes.add(crearCliente(
+                "30-73456789-0",
+                "Almacen Los Andes S.R.L.",
+                "compras@losandes.com",
+                "2614100007",
+                "2615100007",
+                "Chile", "1100", admin
+        ));
+
+        clientes.add(crearCliente(
+                "20-78901234-6",
+                "Martin Sanchez",
+                "martin.sanchez@gmail.com",
+                "2614100008",
+                "2615100008",
+                "Lavalle", "560", admin
+        ));
+
+        clientes.add(crearCliente(
+                "27-89012345-7",
+                "Valentina Torres",
+                "valentina.torres@gmail.com",
+                "2614100009",
+                "2615100009",
+                "Peru", "320", admin
+        ));
+
+        clientes.add(crearCliente(
+                "30-74567890-1",
+                "Comercial Mendoza S.A.",
+                "ventas@comercialmendoza.com",
+                "2614100010",
+                "2615100010",
+                "Aristides", "850", admin
+        ));
+
+        // =====================================================
+        // 50 FACTURAS VARIADAS
+        // =====================================================
+
+        for (int i = 1001; i <= 1050; i++) {
+
+            LocalDate fecha = hoy.minusDays((i - 1000) * 2L);
+
+            String estado = (i % 10 == 0)
+                    ? "ANULADA"
+                    : "EMITIDA";
+
+            // Una de cada cuatro facturas será de consumidor final.
+            boolean esConsumidorFinal = (i % 4 == 0);
+
+            Cliente cliente = esConsumidorFinal
+                    ? null
+                    : clientes.get((i - 1001) % clientes.size());
+
+            // Distribuir las facturas entre los tres puntos de venta.
+            PuntoVenta puntoVenta = puntosVenta.get(
+                    (i - 1001) % puntosVenta.size()
+            );
+
+            // Distribuir las condiciones de IVA entre las facturas.
+            CondicionIva condicionIva;
+
+            if (esConsumidorFinal) {
+                condicionIva = consumidorFinal;
+            } else {
+                List<CondicionIva> otrasCondiciones = Arrays.asList(
+                        responsableInscripto,
+                        monotributista,
+                        exento
+                );
+
+                condicionIva = otrasCondiciones.get(
+                        (i - 1001) % otrasCondiciones.size()
+                );
+            }
+
+            crearFacturaVariada(
+                    (long) i,
+                    fecha,
+                    estado,
+                    cliente,
+                    puntoVenta,
+                    condicionIva,
+                    moneda,
+                    productos,
+                    admin
+            );
+        }
+
+        System.out.println("\n======================================");
+        System.out.println("INICIALIZACION COMPLETADA");
+        System.out.println("Clientes: " + clientes.size());
+        System.out.println("Productos facturables: " + productos.size());
+        System.out.println("Condiciones de IVA: " + condicionesIva.size());
+        System.out.println("Puntos de venta: " + puntosVenta.size());
+        System.out.println("Facturas: 50");
+        System.out.println("Numeros: 1001 a 1050");
+        System.out.println("======================================\n");
+
+        // =====================================================
+        // PRUEBAS DE CONSULTAS JPQL
+        // =====================================================
+
+        List<FacturaVenta> todas =
+                ConsultasService.obtenerTodasLasFacturas(em);
+
+        System.out.println("1. Todas las facturas: " + todas.size());
+
+        List<Object[]> resumen =
+                ConsultasService.obtenerResumenFacturas(em);
+
+        System.out.println("2. Registros del resumen: " + resumen.size());
+
+        List<Articulo> porRubro =
+                ConsultasService.obtenerArticulosPorRubro(em, "Bebidas");
+
+        System.out.println("3. Articulos en Bebidas: " + porRubro.size());
+
+        List<FacturaVenta> porFecha =
+                ConsultasService.obtenerFacturasPorRangoFechas(
+                        em, hoy.minusDays(3), hoy.plusDays(1)
+                );
+
+        System.out.println("4. Facturas recientes: " + porFecha.size());
+
+        List<FacturaVenta> altas =
+                ConsultasService.obtenerFacturasValidasAltas(em, 5000);
+
+        System.out.println(
+                "5. Facturas validas mayores a $5000: " + altas.size()
+        );
+
+        List<Cliente> encontrados =
+                ConsultasService.buscarClientesPorNombreOCuit(
+                        em, "Perez", "20-"
+                );
+
+        System.out.println(
+                "6. Clientes coincidentes: " + encontrados.size()
+        );
+
+        List<String> estados =
+                ConsultasService.obtenerEstadosFacturasUnicos(em);
+
+        System.out.println("7. Estados unicos: " + estados);
+
+        Object[] estadisticas =
+                ConsultasService.obtenerEstadisticasFacturasEmitidas(em);
+
+        System.out.println(
+                "8. Estadisticas de facturas emitidas: "
+                        + Arrays.toString(estadisticas)
+        );
+
+        List<PuntoVenta> puntos =
+                ConsultasService.obtenerPuntosVentaPorNumeros(
+                        em, Arrays.asList(1, 2, 3)
+                );
+
+        System.out.println(
+                "9. Puntos de venta encontrados: " + puntos.size()
+        );
+
+        List<FacturaVenta> porUsuario =
+                ConsultasService.obtenerFacturasPorUsuarioCarga(em, "admin");
+
+        System.out.println(
+                "10. Facturas del usuario admin: " + porUsuario.size()
+        );
+
+        List<FacturaVentaDetalle> detalles =
+                ConsultasService.obtenerDetallesPorNumeroPuntoVenta(em, 1);
+
+        System.out.println("11. Detalles del PV 1: " + detalles.size());
+
+        List<Object[]> articulosMarca =
+                ConsultasService.obtenerArticulosConMarca(em);
+
+        System.out.println(
+                "12. Articulos con marca: " + articulosMarca.size()
+        );
+
+        List<FacturaVenta> porMarca =
+                ConsultasService.obtenerFacturasPorMarcaArticulo(
+                        em, "Coca Cola"
+                );
+
+        System.out.println(
+                "13. Facturas con Coca Cola: " + porMarca.size()
+        );
+
+        List<FacturaVenta> sobrePromedio =
+                ConsultasService.obtenerFacturasSuperioresAlPromedio(em);
+
+        System.out.println(
+                "14. Facturas sobre el promedio: " + sobrePromedio.size()
+        );
+
+        List<FacturaVenta> porCuit =
+                ConsultasService.obtenerFacturasPorCuitCliente(
+                        em, "20-12345678-9"
+                );
+
+        System.out.println(
+                "15. Facturas del cliente Juan Perez: " + porCuit.size()
+        );
+
+        List<Object[]> porPunto =
+                ConsultasService.obtenerResumenFacturacionPorPuntoVenta(em);
+
+        System.out.println(
+                "16. Resumen por punto de venta: " + porPunto.size()
+        );
+
+        List<String> usuarios =
+                ConsultasService.obtenerUsuariosConMasDeNFacturas(em, 0);
+
+        System.out.println("17. Usuarios con facturas: " + usuarios);
+
+        List<Object[]> ventasMarca =
+                ConsultasService.obtenerVentasTotalesPorMarca(em);
+
+        System.out.println("18. Marcas con ventas: " + ventasMarca.size());
+
+        List<Object[]> porIva =
+                ConsultasService.obtenerTotalFacturadoPorCondicionIva(em);
+
+        System.out.println(
+                "19. Resumen por condicion IVA: " + porIva.size()
+        );
+
+        List<Marca> marcasFacturadas =
+                ConsultasService.obtenerMarcasConArticulosFacturados(em);
+
+        System.out.println(
+                "20. Marcas facturadas: " + marcasFacturadas.size()
+        );
+
+        List<Articulo> nuncaFacturados =
+                ConsultasService.obtenerArticulosNuncaFacturados(em);
+
+        System.out.println(
+                "21. Articulos nunca facturados: " + nuncaFacturados.size()
+        );
+
+        List<Object[]> categorizadas =
+                ConsultasService.obtenerFacturasCategorizadas(em);
+
+        System.out.println(
+                "22. Facturas categorizadas: " + categorizadas.size()
+        );
+    }
+
+    // =========================================================
+    // CREACION DE FACTURAS
+    // =========================================================
+
+    private FacturaVenta crearFacturaVariada(
+            Long numero,
+            LocalDate fecha,
+            String estado,
+            Cliente cliente,
+            PuntoVenta puntoVenta,
+            CondicionIva condicionIva,
+            TipoMoneda moneda,
+            List<ListaPrecioArticulo> productos,
+            Usuario admin) {
+
         FacturaVenta f = new FacturaVenta();
+
         f.setNumero(numero);
         f.setFechaEmision(fecha);
         f.setPuntoVenta(puntoVenta);
         f.setCliente(cliente);
         f.setCondicionIva(condicionIva);
-        f.setTipoMoneda(tipoMoneda);
+        f.setTipoMoneda(moneda);
         f.setEstado(estado);
 
         double total = 0;
-        for (double cantidad : cantidades) {
-            double subtotal = cantidad * listaPrecioArticulo.getPrecioVenta();
-            FacturaVentaDetalle d = new FacturaVentaDetalle();
-            d.setListaPrecioArticulo(listaPrecioArticulo);
-            d.setDescripcion(listaPrecioArticulo.getArticulo().getDenominacion());
-            d.setCantidad(cantidad);
-            d.setPrecioUnitario(listaPrecioArticulo.getPrecioVenta());
-            d.setPorcentajeBonificacion(0);
-            d.setImporteNeto(subtotal);
-            d.setImporteIva(0);
-            d.setImporteSubtotal(subtotal);
-            f.addDetalle(d);
+
+        // Entre 1 y 4 detalles por factura.
+        int cantidadItems = 1 + (int) (numero % 4);
+
+        for (int j = 0; j < cantidadItems; j++) {
+
+            int indice = (int) (
+                    (numero - 1001 + j * 3) % productos.size()
+            );
+
+            ListaPrecioArticulo producto = productos.get(indice);
+
+            double cantidad = 1 + ((numero + j) % 5);
+            double subtotal = cantidad * producto.getPrecioVenta();
+
+            FacturaVentaDetalle detalle = new FacturaVentaDetalle();
+
+            detalle.setListaPrecioArticulo(producto);
+            detalle.setDescripcion(
+                    producto.getArticulo().getDenominacion()
+            );
+            detalle.setCantidad(cantidad);
+            detalle.setPrecioUnitario(producto.getPrecioVenta());
+            detalle.setPorcentajeBonificacion(0);
+            detalle.setImporteNeto(subtotal);
+            detalle.setImporteIva(0);
+            detalle.setImporteSubtotal(subtotal);
+
+            f.addDetalle(detalle);
+
             total += subtotal;
         }
+
         f.setImporteTotal(total);
 
         if ("ANULADA".equals(estado)) {
@@ -63,432 +684,182 @@ public class DataInitializer implements CommandLineRunner {
             f.setObservaciones("Factura de prueba");
         }
 
-        f.setFechaAlta(LocalDate.now());
-        f.setFechaModificacion(LocalDate.now());
-        f.setUsuarioCarga(admin);
-        f.setUsuarioModificacion(admin);
+        auditar(f, admin);
 
         em.persist(f);
+
         return f;
     }
 
-    @Override
-    @Transactional
-    public void run(String... args) throws Exception {
+    // =========================================================
+    // CREACION DE CLIENTES
+    // =========================================================
 
-        // Evita duplicar los datos de prueba en cada arranque
-        Long facturasCargadas = em.createQuery("SELECT COUNT(f) FROM FacturaVenta f", Long.class).getSingleResult();
-        if (facturasCargadas > 0) {
-            System.out.println("Datos de prueba ya cargados: se omite la carga inicial.");
-            return;
-        }
+    private Cliente crearCliente(
+            String cuit,
+            String denominacion,
+            String email,
+            String telefono,
+            String celular,
+            String calle,
+            String numeroCalle,
+            Usuario admin) {
 
-        // ==========================
-        // USUARIO (Auditoría)
-        // ==========================
-        Usuario admin = new Usuario();
-        admin.setUsuario("admin");
-        admin.setClave("1234");
-        admin.setNombre("Matias");
-        admin.setApellido("Soto");
-
-        em.persist(admin);
-
-        // ==========================
-        // CONDICIÓN IVA
-        // ==========================
-        CondicionIva condicionIva = new CondicionIva();
-        condicionIva.setCodigoAfip(1);
-        condicionIva.setDenominacion("IVA Responsable Inscripto");
-        condicionIva.setFechaAlta(LocalDate.now());
-        condicionIva.setFechaModificacion(LocalDate.now());
-        condicionIva.setUsuarioCarga(admin);
-        condicionIva.setUsuarioModificacion(admin);
-
-        em.persist(condicionIva);
-
-        // ==========================
-        // TIPO MONEDA
-        // ==========================
-        TipoMoneda tipoMoneda = new TipoMoneda();
-        tipoMoneda.setCodigoAfip("PES");
-        tipoMoneda.setDenominacion("Pesos Argentinos");
-        tipoMoneda.setSimbolo("$");
-        tipoMoneda.setFechaAlta(LocalDate.now());
-        tipoMoneda.setFechaModificacion(LocalDate.now());
-        tipoMoneda.setUsuarioCarga(admin);
-        tipoMoneda.setUsuarioModificacion(admin);
-
-        em.persist(tipoMoneda);
-
-        // ==========================
-        // PUNTO DE VENTA
-        // ==========================
-        PuntoVenta puntoVenta = new PuntoVenta();
-        puntoVenta.setNumero(1);
-        puntoVenta.setDescripcion("Casa Central");
-        puntoVenta.setTipoEmision("Manual");
-        puntoVenta.setDomicilioComercial("San Martín 123");
-        puntoVenta.setFechaAlta(LocalDate.now());
-        puntoVenta.setFechaModificacion(LocalDate.now());
-        puntoVenta.setUsuarioCarga(admin);
-        puntoVenta.setUsuarioModificacion(admin);
-
-        em.persist(puntoVenta);
-
-        // ==========================
-        // MARCAS
-        // ==========================
-        Marca marca1 = new Marca();
-        marca1.setCodigo(100);
-        marca1.setDenominacion("Coca Cola");
-        marca1.setFechaAlta(LocalDate.now());
-        marca1.setFechaModificacion(LocalDate.now());
-        marca1.setUsuarioCarga(admin);
-        marca1.setUsuarioModificacion(admin);
-
-        em.persist(marca1);
-
-        // Marca no facturada para probar consulta 21
-        Marca marca2 = new Marca();
-        marca2.setCodigo(200);
-        marca2.setDenominacion("Pepsi");
-        marca2.setFechaAlta(LocalDate.now());
-        marca2.setFechaModificacion(LocalDate.now());
-        marca2.setUsuarioCarga(admin);
-        marca2.setUsuarioModificacion(admin);
-
-        em.persist(marca2);
-
-        // ==========================
-        // RUBRO
-        // ==========================
-        Rubro rubro = new Rubro();
-        rubro.setCodigo(10);
-        rubro.setDenominacion("Bebidas");
-        rubro.setFechaAlta(LocalDate.now());
-        rubro.setFechaModificacion(LocalDate.now());
-        rubro.setUsuarioCarga(admin);
-        rubro.setUsuarioModificacion(admin);
-
-        em.persist(rubro);
-
-        // ==========================
-        // ARTÍCULOS
-        // ==========================
-        Articulo articulo1 = new Articulo();
-        articulo1.setCodigo("COCA500");
-        articulo1.setDenominacion("Coca Cola 500 ml");
-        articulo1.setMarca(marca1);
-        articulo1.setRubro(rubro);
-        articulo1.setFechaAlta(LocalDate.now());
-        articulo1.setFechaModificacion(LocalDate.now());
-        articulo1.setUsuarioCarga(admin);
-        articulo1.setUsuarioModificacion(admin);
-
-        em.persist(articulo1);
-
-        // Artículo no facturado para probar consulta 21
-        Articulo articulo2 = new Articulo();
-        articulo2.setCodigo("PEPSI500");
-        articulo2.setDenominacion("Pepsi 500 ml");
-        articulo2.setMarca(marca2);
-        articulo2.setRubro(rubro);
-        articulo2.setFechaAlta(LocalDate.now());
-        articulo2.setFechaModificacion(LocalDate.now());
-        articulo2.setUsuarioCarga(admin);
-        articulo2.setUsuarioModificacion(admin);
-
-        em.persist(articulo2);
-
-        // ==========================
-        // LISTA DE PRECIOS
-        // ==========================
-        ListaPrecio listaPrecio = new ListaPrecio();
-        listaPrecio.setCodigo("LP01");
-        listaPrecio.setDenominacion("Lista General");
-        listaPrecio.setFechaAlta(LocalDate.now());
-        listaPrecio.setFechaModificacion(LocalDate.now());
-        listaPrecio.setUsuarioCarga(admin);
-        listaPrecio.setUsuarioModificacion(admin);
-
-        em.persist(listaPrecio);
-
-        // ==========================
-        // LISTA PRECIO ARTÍCULO
-        // ==========================
-        ListaPrecioArticulo listaPrecioArticulo = new ListaPrecioArticulo();
-        listaPrecioArticulo.setListaPrecio(listaPrecio);
-        listaPrecioArticulo.setArticulo(articulo1);
-        listaPrecioArticulo.setPrecioVenta(2500);
-        listaPrecioArticulo.setFechaAlta(LocalDate.now());
-        listaPrecioArticulo.setFechaModificacion(LocalDate.now());
-        listaPrecioArticulo.setUsuarioCarga(admin);
-        listaPrecioArticulo.setUsuarioModificacion(admin);
-
-        em.persist(listaPrecioArticulo);
-
-        // ==========================
-        // CONTACTO
-        // ==========================
         Contacto contacto = new Contacto();
-        contacto.setEmail("cliente@gmail.com");
-        contacto.setTelefono("2614567890");
-        contacto.setCelular("2615555555");
-
+        contacto.setEmail(email);
+        contacto.setTelefono(telefono);
+        contacto.setCelular(celular);
         em.persist(contacto);
 
-        // ==========================
-        // DOMICILIO
-        // ==========================
         Domicilio domicilio = new Domicilio();
-        domicilio.setNombreCalle("Belgrano");
-        domicilio.setNumeroCalle("450");
-
+        domicilio.setNombreCalle(calle);
+        domicilio.setNumeroCalle(numeroCalle);
         em.persist(domicilio);
 
-        // ==========================
-        // CLIENTE
-        // ==========================
         Cliente cliente = new Cliente();
-        cliente.setCuitCuil("20-12345678-9");
-        cliente.setDenominacion("Juan Pérez");
+        cliente.setCuitCuil(cuit);
+        cliente.setDenominacion(denominacion);
         cliente.setContacto(contacto);
         cliente.setDomicilio(domicilio);
-        cliente.setFechaAlta(LocalDate.now());
-        cliente.setFechaModificacion(LocalDate.now());
-        cliente.setUsuarioCarga(admin);
-        cliente.setUsuarioModificacion(admin);
+
+        auditar(cliente, admin);
 
         em.persist(cliente);
 
-        // ==========================
-        // FACTURA CABECERA
-        // ==========================
-        FacturaVenta factura = new FacturaVenta();
-        factura.setNumero(1001L);
-        factura.setFechaEmision(LocalDate.now());
-        factura.setPuntoVenta(puntoVenta);
-        factura.setCliente(cliente);
-        factura.setCondicionIva(condicionIva);
-        factura.setTipoMoneda(tipoMoneda);
+        return cliente;
+    }
 
-        factura.setImporteCobrado(5000);
-        factura.setImporteSaldo(0);
-        factura.setImporteTotal(7500);
+    // =========================================================
+    // CREACION DE ARTICULOS Y PRECIOS
+    // =========================================================
 
-        factura.setCae("12345678901234");
-        factura.setCaeFechaVencimiento(LocalDate.now().plusDays(10));
+    private Marca crearMarca(
+            int codigo,
+            String denominacion,
+            Usuario admin) {
 
-        factura.setResultadoAfip("A");
-        factura.setEstado("EMITIDA");
-        factura.setObservaciones("Factura de prueba");
+        Marca marca = new Marca();
+        marca.setCodigo(codigo);
+        marca.setDenominacion(denominacion);
 
-        factura.setFechaAlta(LocalDate.now());
-        factura.setFechaModificacion(LocalDate.now());
-        factura.setUsuarioCarga(admin);
-        factura.setUsuarioModificacion(admin);
+        auditar(marca, admin);
 
-        // DETALLES
-        FacturaVentaDetalle detalle1 = new FacturaVentaDetalle();
-        detalle1.setFactura(factura);
-        detalle1.setListaPrecioArticulo(listaPrecioArticulo);
-        detalle1.setDescripcion("Coca Cola 500 ml");
-        detalle1.setCantidad(2);
-        detalle1.setPrecioUnitario(2500);
-        detalle1.setPorcentajeBonificacion(0);
-        detalle1.setImporteNeto(5000);
-        detalle1.setImporteIva(0);
-        detalle1.setImporteSubtotal(5000);
+        em.persist(marca);
 
-        FacturaVentaDetalle detalle2 = new FacturaVentaDetalle();
-        detalle2.setFactura(factura);
-        detalle2.setListaPrecioArticulo(listaPrecioArticulo);
-        detalle2.setDescripcion("Coca Cola 500 ml");
-        detalle2.setCantidad(1);
-        detalle2.setPrecioUnitario(2500);
-        detalle2.setPorcentajeBonificacion(0);
-        detalle2.setImporteNeto(2500);
-        detalle2.setImporteIva(0);
-        detalle2.setImporteSubtotal(2500);
+        return marca;
+    }
 
-        List<FacturaVentaDetalle> detalles = new ArrayList<>();
-        detalles.add(detalle1);
-        detalles.add(detalle2);
+    private Rubro crearRubro(
+            int codigo,
+            String denominacion,
+            Usuario admin) {
 
-        factura.setDetalles(detalles);
+        Rubro rubro = new Rubro();
+        rubro.setCodigo(codigo);
+        rubro.setDenominacion(denominacion);
 
-        em.persist(factura);
+        auditar(rubro, admin);
 
-        // ==========================
-        // FACTURAS ADICIONALES (para probar filtros y reportes)
-        // ==========================
-        Contacto contactoTech = new Contacto();
-        contactoTech.setEmail("ventas@empresatech.com");
-        contactoTech.setTelefono("2614000000");
-        contactoTech.setCelular("2615000000");
-        em.persist(contactoTech);
+        em.persist(rubro);
 
-        Domicilio domicilioTech = new Domicilio();
-        domicilioTech.setNombreCalle("Las Heras");
-        domicilioTech.setNumeroCalle("1200");
-        em.persist(domicilioTech);
+        return rubro;
+    }
 
-        Cliente clienteTech = new Cliente();
-        clienteTech.setCuitCuil("30-71234567-8");
-        clienteTech.setDenominacion("Empresa Tech S.A.");
-        clienteTech.setContacto(contactoTech);
-        clienteTech.setDomicilio(domicilioTech);
-        clienteTech.setFechaAlta(LocalDate.now());
-        clienteTech.setFechaModificacion(LocalDate.now());
-        clienteTech.setUsuarioCarga(admin);
-        clienteTech.setUsuarioModificacion(admin);
-        em.persist(clienteTech);
+    private Articulo crearArticulo(
+            String codigo,
+            String denominacion,
+            Marca marca,
+            Rubro rubro,
+            Usuario admin) {
 
-        // 5 ítems, cliente empresa, hace 30 días
-        crearFactura(1002L, LocalDate.now().minusDays(30), "EMITIDA", clienteTech,
-                puntoVenta, condicionIva, tipoMoneda, listaPrecioArticulo, admin, 1, 2, 1, 3, 2);
+        Articulo articulo = new Articulo();
 
-        // Sin cliente (Consumidor Final), anulada, hace 10 días
-        crearFactura(1003L, LocalDate.now().minusDays(10), "ANULADA", null,
-                puntoVenta, condicionIva, tipoMoneda, listaPrecioArticulo, admin, 1);
+        articulo.setCodigo(codigo);
+        articulo.setDenominacion(denominacion);
+        articulo.setMarca(marca);
+        articulo.setRubro(rubro);
 
-        // Sin cliente (Consumidor Final), emitida, hace 2 días
-        crearFactura(1004L, LocalDate.now().minusDays(2), "EMITIDA", null,
-                puntoVenta, condicionIva, tipoMoneda, listaPrecioArticulo, admin, 1, 1, 1);
+        auditar(articulo, admin);
 
-        System.out.println("==================================");
-        System.out.println("FACTURA GUARDADA CORRECTAMENTE");
-        System.out.println("Número: " + factura.getNumero());
-        System.out.println("Cliente: " + factura.getCliente().getDenominacion());
-        System.out.println("Condición IVA: " + factura.getCondicionIva().getDenominacion());
-        System.out.println("Moneda: " + factura.getTipoMoneda().getSimbolo());
-        System.out.println("Detalles: " + factura.getDetalles().size());
-        System.out.println("Importe Total: $" + factura.getImporteTotal());
-        System.out.println("==================================\n");
+        em.persist(articulo);
 
-        // =========================================================================
-        // PRUEBAS DE LAS CONSULTAS JPQL (1 AL 22)
-        // =========================================================================
+        return articulo;
+    }
 
-        System.out.println("--- PRUEBAS NIVEL 1 ---");
+    private ListaPrecioArticulo crearPrecio(
+            ListaPrecio listaPrecio,
+            Articulo articulo,
+            double precio,
+            Usuario admin) {
 
-        // 1.
-        List<FacturaVenta> f1 = ConsultasService.obtenerTodasLasFacturas(em);
-        System.out.println("1. Todas las facturas: " + f1.size());
+        ListaPrecioArticulo registro = new ListaPrecioArticulo();
 
-        // IMPRIMIR DETALLE COMPLETO DE CADA FACTURA
-        System.out.println("\n================ LISTADO DETALLADO ================");
-        for (FacturaVenta f : f1) {
-            System.out.println("Factura N°: " + f.getNumero() + " | Fecha: " + f.getFechaEmision() + " | Estado: " + f.getEstado());
-            System.out.println("Cliente: " + (f.getCliente() != null
-                    ? f.getCliente().getDenominacion() + " (CUIT: " + f.getCliente().getCuitCuil() + ")"
-                    : "Consumidor Final"));
-            System.out.println("Punto de Venta: " + f.getPuntoVenta().getDescripcion());
-            System.out.println("Condición IVA: " + f.getCondicionIva().getDenominacion());
+        registro.setListaPrecio(listaPrecio);
+        registro.setArticulo(articulo);
+        registro.setPrecioVenta(precio);
 
-            System.out.println("  Detalles:");
-            for (FacturaVentaDetalle d : f.getDetalles()) {
-                System.out.println("   - Item: " + d.getDescripcion() +
-                        " | Cant: " + d.getCantidad() +
-                        " | P.Unit: $" + d.getPrecioUnitario() +
-                        " | Subtotal: $" + d.getImporteSubtotal());
-            }
-            System.out.println("TOTAL FACTURA: $" + f.getImporteTotal());
-            System.out.println("--------------------------------------------------");
-        }
-        System.out.println("==================================================\n");
+        auditar(registro, admin);
 
-        // 2.
-        List<Object[]> f2 = ConsultasService.obtenerResumenFacturas(em);
-        System.out.println("2. Resumen Factura N° " + f2.get(0)[0] + " | Fecha: " + f2.get(0)[1] + " | Total: $" + f2.get(0)[2]);
+        em.persist(registro);
 
-        // 3.
-        List<Articulo> f3 = ConsultasService.obtenerArticulosPorRubro(em, "Bebidas");
-        System.out.println("3. Artículos en 'Bebidas': " + f3.size());
+        return registro;
+    }
 
-        // 4.
-        List<FacturaVenta> f4 = ConsultasService.obtenerFacturasPorRangoFechas(em, LocalDate.now().minusDays(1), LocalDate.now().plusDays(1));
-        System.out.println("4. Facturas en rango de fechas: " + f4.size());
+    // =========================================================
+    // CREACION DE CONDICIONES DE IVA
+    // =========================================================
 
-        System.out.println("\n--- PRUEBAS NIVEL 2 ---");
+    private CondicionIva crearCondicionIva(
+            int codigoAfip,
+            String denominacion,
+            Usuario admin) {
 
-        // 5.
-        List<FacturaVenta> f5 = ConsultasService.obtenerFacturasValidasAltas(em, 5000);
-        System.out.println("5. Facturas válidas mayores a $5000: " + f5.size());
+        CondicionIva condicion = new CondicionIva();
 
-        // 6.
-        List<Cliente> f6 = ConsultasService.buscarClientesPorNombreOCuit(em, "Pérez", "20-");
-        System.out.println("6. Clientes coincidentes: " + f6.get(0).getDenominacion());
+        condicion.setCodigoAfip(codigoAfip);
+        condicion.setDenominacion(denominacion);
 
-        // 7.
-        List<String> f7 = ConsultasService.obtenerEstadosFacturasUnicos(em);
-        System.out.println("7. Estados únicos: " + f7);
+        auditar(condicion, admin);
 
-        // 8.
-        Object[] f8 = ConsultasService.obtenerEstadisticasFacturasEmitidas(em);
-        System.out.println("8. Cantidad: " + f8[0] + " | Suma: $" + f8[1] + " | Promedio: $" + f8[2]);
+        em.persist(condicion);
 
-        // 9.
-        List<PuntoVenta> f9 = ConsultasService.obtenerPuntosVentaPorNumeros(em, Arrays.asList(1, 2, 3));
-        System.out.println("9. Puntos de venta encontrados: " + f9.size());
+        return condicion;
+    }
 
-        System.out.println("\n--- PRUEBAS NIVEL 3 ---");
+    // =========================================================
+    // CREACION DE PUNTOS DE VENTA
+    // =========================================================
 
-        // 10.
-        List<FacturaVenta> f10 = ConsultasService.obtenerFacturasPorUsuarioCarga(em, "admin");
-        System.out.println("10. Facturas del usuario admin: " + f10.size());
+    private PuntoVenta crearPuntoVenta(
+            int numero,
+            String descripcion,
+            String tipoEmision,
+            String domicilio,
+            Usuario admin) {
 
-        // 11.
-        List<FacturaVentaDetalle> f11 = ConsultasService.obtenerDetallesPorNumeroPuntoVenta(em, 1);
-        System.out.println("11. Detalles del PV 1: " + f11.size());
+        PuntoVenta punto = new PuntoVenta();
 
-        // 12.
-        List<Object[]> f12 = ConsultasService.obtenerArticulosConMarca(em);
-        System.out.println("12. Artículo: " + f12.get(0)[0] + " | Marca: " + f12.get(0)[1]);
+        punto.setNumero(numero);
+        punto.setDescripcion(descripcion);
+        punto.setTipoEmision(tipoEmision);
+        punto.setDomicilioComercial(domicilio);
 
-        // 13.
-        List<FacturaVenta> f13 = ConsultasService.obtenerFacturasPorMarcaArticulo(em, "Coca Cola");
-        System.out.println("13. Facturas con marca Coca Cola: " + f13.size());
+        auditar(punto, admin);
 
-        // 14.
-        List<FacturaVenta> f14 = ConsultasService.obtenerFacturasSuperioresAlPromedio(em);
-        System.out.println("14. Facturas sobre el promedio: " + f14.size());
+        em.persist(punto);
 
-        // 15.
-        List<FacturaVenta> f15 = ConsultasService.obtenerFacturasPorCuitCliente(em, "20-12345678-9");
-        System.out.println("15. Facturas por CUIT cliente: " + f15.size());
+        return punto;
+    }
 
-        System.out.println("\n--- PRUEBAS NIVEL 4 ---");
+    // =========================================================
+    // AUDITORIA
+    // =========================================================
 
-        // 16.
-        List<Object[]> f16 = ConsultasService.obtenerResumenFacturacionPorPuntoVenta(em);
-        System.out.println("16. PV: " + f16.get(0)[0] + " | Cant: " + f16.get(0)[1] + " | Total: $" + f16.get(0)[2]);
+    private void auditar(AuditoriaApp entidad, Usuario admin) {
 
-        // 17.
-        List<String> f17 = ConsultasService.obtenerUsuariosConMasDeNFacturas(em, 0);
-        System.out.println("17. Usuarios con > 0 facturas: " + f17);
-
-        // 18.
-        List<Object[]> f18 = ConsultasService.obtenerVentasTotalesPorMarca(em);
-        System.out.println("18. Marca: " + f18.get(0)[0] + " | Unidades: " + f18.get(0)[1] + " | Total: $" + f18.get(0)[2]);
-
-        // 19.
-        List<Object[]> f19 = ConsultasService.obtenerTotalFacturadoPorCondicionIva(em);
-        System.out.println("19. Condición IVA: " + f19.get(0)[0] + " | Total: $" + f19.get(0)[1]);
-
-        System.out.println("\n--- PRUEBAS NIVEL 5 ---");
-
-        // 20.
-        List<Marca> f20 = ConsultasService.obtenerMarcasConArticulosFacturados(em);
-        System.out.println("20. Marcas facturadas: " + f20.get(0).getDenominacion());
-
-        // 21.
-        List<Articulo> f21 = ConsultasService.obtenerArticulosNuncaFacturados(em);
-        System.out.println("21. Artículos nunca facturados: " + f21.size());
-
-        // 22.
-        List<Object[]> f22 = ConsultasService.obtenerFacturasCategorizadas(em);
-        System.out.println("22. Factura N° " + f22.get(0)[0] + " | Categoria: " + f22.get(0)[2]);
+        entidad.setFechaAlta(LocalDate.now());
+        entidad.setFechaModificacion(LocalDate.now());
+        entidad.setUsuarioCarga(admin);
+        entidad.setUsuarioModificacion(admin);
     }
 }
