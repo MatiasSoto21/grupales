@@ -13,6 +13,12 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.example.facturacion.dto.FacturaRequestDTO;
+import com.example.facturacion.entities.FacturaVenta;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+
 import java.io.IOException;
 import java.time.LocalDate;
 import java.util.List;
@@ -68,5 +74,26 @@ public class FacturaRestController {
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=reporte-facturas.xlsx")
                 .contentType(XLSX)
                 .body(reporteService.generarExcel(facturas));
+    }
+
+    @PostMapping
+    public ResponseEntity<FacturaReporteDTO> crear(
+            @RequestBody FacturaRequestDTO request) {
+
+        FacturaVenta factura = facturaService.crearFactura(request);
+
+        FacturaReporteDTO reporte = new FacturaReporteDTO(
+                factura.getNumero(),
+                factura.getFechaEmision(),
+                factura.getCliente() != null
+                        ? factura.getCliente().getDenominacion()
+                        : "Consumidor Final",
+                factura.getCondicionIva().getDenominacion(),
+                factura.getPuntoVenta().getDescripcion(),
+                factura.getImporteTotal(),
+                factura.getDetalles().size()
+        );
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(reporte);
     }
 }
