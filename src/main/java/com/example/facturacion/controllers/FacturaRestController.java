@@ -1,23 +1,18 @@
 package com.example.facturacion.controllers;
 
 import com.example.facturacion.dto.FacturaReporteDTO;
+import com.example.facturacion.dto.FacturaRequestDTO;
+import com.example.facturacion.entities.FacturaVenta;
 import com.example.facturacion.services.FacturaService;
 import com.example.facturacion.services.ReporteService;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
-
-import com.example.facturacion.dto.FacturaRequestDTO;
-import com.example.facturacion.entities.FacturaVenta;
-import org.springframework.http.HttpStatus;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
 import java.time.LocalDate;
@@ -77,12 +72,31 @@ public class FacturaRestController {
     }
 
     @PostMapping
-    public ResponseEntity<FacturaReporteDTO> crear(
-            @RequestBody FacturaRequestDTO request) {
-
+    public ResponseEntity<FacturaReporteDTO> crear(@RequestBody FacturaRequestDTO request) {
         FacturaVenta factura = facturaService.crearFactura(request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(convertirAReporteDTO(factura));
+    }
 
-        FacturaReporteDTO reporte = new FacturaReporteDTO(
+    @PutMapping("/{id}")
+    public ResponseEntity<FacturaReporteDTO> actualizar(@PathVariable Long id, @RequestBody FacturaRequestDTO request) {
+        FacturaVenta factura = facturaService.actualizarFactura(id, request);
+        return ResponseEntity.ok(convertirAReporteDTO(factura));
+    }
+
+    @PutMapping("/{id}/anular")
+    public ResponseEntity<FacturaReporteDTO> anular(@PathVariable Long id) {
+        FacturaVenta factura = facturaService.anularFactura(id);
+        return ResponseEntity.ok(convertirAReporteDTO(factura));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> eliminar(@PathVariable Long id) {
+        facturaService.eliminarFactura(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    private FacturaReporteDTO convertirAReporteDTO(FacturaVenta factura) {
+        return new FacturaReporteDTO(
                 factura.getNumero(),
                 factura.getFechaEmision(),
                 factura.getCliente() != null
@@ -93,7 +107,5 @@ public class FacturaRestController {
                 factura.getImporteTotal(),
                 factura.getDetalles().size()
         );
-
-        return ResponseEntity.status(HttpStatus.CREATED).body(reporte);
     }
 }

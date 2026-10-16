@@ -12,7 +12,6 @@ import java.util.List;
 @Getter
 @Setter
 @NoArgsConstructor
-@AllArgsConstructor
 @EqualsAndHashCode(callSuper = true, exclude = {"detalles"})
 @ToString(exclude = {"detalles"})
 public class FacturaVenta extends AuditoriaApp {
@@ -55,11 +54,15 @@ public class FacturaVenta extends AuditoriaApp {
     private LocalDate fechaAnulacion;
     private String observaciones;
 
-    @OneToMany(mappedBy = "factura", cascade = CascadeType.ALL)
+    @Setter(AccessLevel.NONE) // Previene que Lombok rompa la relación bidireccional
+    @OneToMany(mappedBy = "factura", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<FacturaVentaDetalle> detalles = new ArrayList<>();
 
     public void addDetalle(FacturaVentaDetalle detalle) {
         detalles.add(detalle);
         detalle.setFactura(this);
     }
+<<<<<<< HEAD
+}
+=======
 }
