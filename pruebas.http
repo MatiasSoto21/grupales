@@ -1,0 +1,63 @@
+### 1. Obtener todas las facturas (GET)
+GET http://localhost:8080/api/facturas
+
+###
+
+### 2. Filtrar facturas (GET con parámetros)
+GET http://localhost:8080/api/facturas?estado=PENDIENTE&montoMinimo=100.0
+
+###
+
+### 3. Crear una nueva factura (POST)
+POST http://localhost:8080/api/facturas
+Content-Type: application/json
+
+{
+  "numero": 1001,
+  "fechaEmision": "2026-10-15",
+  "clienteId": 1,
+  "condicionIvaId": 1,
+  "tipoMonedaId": 1,
+  "puntoVentaId": 1,
+  "importeCobrado": 1000.0,
+  "estado": "PENDIENTE",
+  "observaciones": "Factura creada desde VS Code",
+  "detalles": [
+    {
+      "articuloId": 1,
+      "cantidad": 2,
+      "porcentajeBonificacion": 0.0,
+      "descripcion": "Artículo de prueba"
+    }
+  ]
+}
+
+###
+
+### 4. Actualizar factura existente (PUT)
+PUT http://localhost:8080/api/facturas/1
+Content-Type: application/json
+
+{
+  "numero": 1001,
+  "fechaEmision": "2026-10-15",
+  "clienteId": 1,
+  "condicionIvaId": 1,
+  "tipoMonedaId": 1,
+  "puntoVentaId": 1,
+  "importeCobrado": 1500.0,
+  "estado": "PENDIENTE",
+  "observaciones": "Factura actualizada",
+  "detalles": [
+    {
+      "articuloId": 1,
+      "cantidad": 3,
+      "porcentajeBonificacion": 5.0,
+      "descripcion": "Artículo modificado"
+    }
+  ]
+}
+###
+
+### 5. Eliminar o anular factura (DELETE)
+DELETE http://localhost:8080/api/facturas/1
