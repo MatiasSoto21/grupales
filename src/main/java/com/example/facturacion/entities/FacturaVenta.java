@@ -62,4 +62,7 @@ public class FacturaVenta extends AuditoriaApp {
         detalles.add(detalle);
         detalle.setFactura(this);
     }
+<<<<<<< HEAD
+}
+=======
 }

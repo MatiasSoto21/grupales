@@ -12,7 +12,6 @@ import com.example.facturacion.entities.ListaPrecioArticulo;
 import com.example.facturacion.entities.PuntoVenta;
 import com.example.facturacion.entities.TipoMoneda;
 import com.example.facturacion.entities.Usuario;
-
 import com.example.facturacion.repositories.ClienteRepository;
 import com.example.facturacion.repositories.CondicionIvaRepository;
 import com.example.facturacion.repositories.FacturaVentaRepository;
