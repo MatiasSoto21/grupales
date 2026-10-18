@@ -284,6 +284,200 @@ public class FacturaService {
         return facturaVentaRepository.save(factura);
     }
 
+
+    @Transactional
+    public FacturaVenta actualizarFactura(Long id, FacturaRequestDTO request) {
+
+        if (request == null) {
+            throw new IllegalArgumentException("Los datos de la factura son obligatorios");
+        }
+
+        // 1. Buscar la factura existente.
+        FacturaVenta factura = facturaVentaRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "No existe la factura con ID " + id));
+
+        // 2. Validar los datos obligatorios.
+        if (request.getFechaEmision() == null) {
+            throw new IllegalArgumentException("La fecha de emisión es obligatoria");
+        }
+
+        if (request.getPuntoVentaId() == null
+                || request.getCondicionIvaId() == null
+                || request.getTipoMonedaId() == null) {
+            throw new IllegalArgumentException(
+                    "Punto de venta, condición de IVA y moneda son obligatorios");
+        }
+
+        if (request.getDetalles() == null || request.getDetalles().isEmpty()) {
+            throw new IllegalArgumentException(
+                    "La factura debe tener al menos un detalle");
+        }
+
+        // 3. Buscar las entidades relacionadas.
+        PuntoVenta puntoVenta = puntoVentaRepository.findById(request.getPuntoVentaId())
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "No existe el punto de venta indicado"));
+
+        CondicionIva condicionIva = condicionIvaRepository
+                .findById(request.getCondicionIvaId())
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "No existe la condición de IVA indicada"));
+
+        TipoMoneda tipoMoneda = tipoMonedaRepository
+                .findById(request.getTipoMonedaId())
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "No existe el tipo de moneda indicado"));
+
+        Cliente cliente = null;
+
+        if (request.getClienteId() != null) {
+            cliente = clienteRepository.findById(request.getClienteId())
+                    .orElseThrow(() -> new IllegalArgumentException(
+                            "No existe el cliente indicado"));
+        }
+
+        Usuario usuario = usuarioRepository.findByUsuario("admin")
+                .orElseThrow(() -> new IllegalStateException(
+                        "No existe el usuario admin para la auditoría"));
+
+        // 4. Actualizar la cabecera sin crear otra factura.
+        LocalDate hoy = LocalDate.now();
+
+        if (request.getNumero() != null) {
+            factura.setNumero(request.getNumero());
+        }
+
+        factura.setFechaEmision(request.getFechaEmision());
+        factura.setCliente(cliente);
+        factura.setCondicionIva(condicionIva);
+        factura.setTipoMoneda(tipoMoneda);
+        factura.setPuntoVenta(puntoVenta);
+
+        if (request.getEstado() != null && !request.getEstado().isBlank()) {
+            factura.setEstado(request.getEstado());
+        }
+
+        factura.setObservaciones(request.getObservaciones());
+        factura.setFechaModificacion(hoy);
+        factura.setUsuarioModificacion(usuario);
+
+        // 5. Reemplazar los detalles anteriores.
+        factura.getDetalles().clear();
+
+        double total = 0.0;
+
+        for (FacturaDetalleRequestDTO detalleRequest : request.getDetalles()) {
+
+            if (detalleRequest.getArticuloId() == null) {
+                throw new IllegalArgumentException(
+                        "Cada detalle debe indicar un artículo");
+            }
+
+            if (detalleRequest.getCantidad() <= 0) {
+                throw new IllegalArgumentException(
+                        "La cantidad debe ser mayor que cero");
+            }
+
+            double bonificacion = detalleRequest.getPorcentajeBonificacion();
+
+            if (bonificacion < 0 || bonificacion > 100) {
+                throw new IllegalArgumentException(
+                        "La bonificación debe estar entre 0 y 100");
+            }
+
+            ListaPrecioArticulo precioArticulo = listaPrecioArticuloRepository
+                    .findFirstByArticulo_Id(detalleRequest.getArticuloId())
+                    .orElseThrow(() -> new IllegalArgumentException(
+                            "No existe una lista de precios para el artículo "
+                                    + detalleRequest.getArticuloId()));
+
+            double precioUnitario = precioArticulo.getPrecioVenta();
+
+            double neto = redondear(
+                    detalleRequest.getCantidad()
+                            * precioUnitario
+                            * (1 - bonificacion / 100));
+
+            double iva = redondear(neto * IVA_PORCENTAJE / 100);
+            double subtotal = redondear(neto + iva);
+
+            FacturaVentaDetalle detalle = new FacturaVentaDetalle();
+            detalle.setListaPrecioArticulo(precioArticulo);
+
+            String descripcion = detalleRequest.getDescripcion();
+
+            if (descripcion == null || descripcion.isBlank()) {
+                descripcion = precioArticulo.getArticulo().getDenominacion();
+            }
+
+            detalle.setDescripcion(descripcion);
+            detalle.setCantidad(detalleRequest.getCantidad());
+            detalle.setPrecioUnitario(precioUnitario);
+            detalle.setPorcentajeBonificacion(bonificacion);
+            detalle.setImporteNeto(neto);
+            detalle.setImporteIva(iva);
+            detalle.setImporteSubtotal(subtotal);
+
+            factura.addDetalle(detalle);
+            total += subtotal;
+        }
+
+        // 6. Recalcular total, cobrado y saldo.
+        total = redondear(total);
+        double cobrado = request.getImporteCobrado();
+
+        if (cobrado < 0 || cobrado > total) {
+            throw new IllegalArgumentException(
+                    "El importe cobrado debe estar entre cero y el total");
+        }
+
+        factura.setImporteTotal(total);
+        factura.setImporteCobrado(redondear(cobrado));
+        factura.setImporteSaldo(redondear(total - cobrado));
+
+        // 7. Guardar los cambios.
+        return facturaVentaRepository.save(factura);
+    }
+
+
+    @Transactional
+    public void anularFactura(Long id) {
+
+        // 1. Buscar la factura.
+        FacturaVenta factura = facturaVentaRepository.findById(id)
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.NOT_FOUND,
+                        "No existe la factura con ID " + id));
+
+        // 2. Evitar anularla más de una vez.
+        if ("ANULADA".equalsIgnoreCase(factura.getEstado())
+                || factura.getFechaAnulacion() != null) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.CONFLICT,
+                    "La factura ya está anulada");
+        }
+
+        // 3. Registrar quién hizo la operación.
+        Usuario usuario = usuarioRepository.findByUsuario("admin")
+                .orElseThrow(() -> new IllegalStateException(
+                        "No existe el usuario admin para la auditoría"));
+
+        // 4. Realizar el borrado lógico.
+        LocalDate hoy = LocalDate.now();
+
+        factura.setEstado("ANULADA");
+        factura.setFechaAnulacion(hoy);
+        factura.setFechaBaja(hoy);
+        factura.setFechaModificacion(hoy);
+        factura.setUsuarioModificacion(usuario);
+        factura.setUsuarioBaja(usuario);
+
+        // 5. Guardar los cambios sin eliminar el registro.
+        facturaVentaRepository.save(factura);
+    }
+
+
     private double redondear(double importe) {
         return BigDecimal.valueOf(importe)
                 .setScale(2, RoundingMode.HALF_UP)

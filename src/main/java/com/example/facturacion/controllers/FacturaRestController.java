@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.CrossOrigin;
 
 import com.example.facturacion.dto.FacturaRequestDTO;
 import com.example.facturacion.entities.FacturaVenta;
@@ -23,9 +24,15 @@ import java.io.IOException;
 import java.time.LocalDate;
 import java.util.List;
 
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.DeleteMapping;
+
+
 @RestController
 @RequestMapping("/api/facturas")
 @RequiredArgsConstructor
+@CrossOrigin(origins = "http://localhost:3000")
 public class FacturaRestController {
 
     private static final MediaType XLSX =
@@ -96,4 +103,36 @@ public class FacturaRestController {
 
         return ResponseEntity.status(HttpStatus.CREATED).body(reporte);
     }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<FacturaReporteDTO> actualizar(
+            @PathVariable Long id,
+            @RequestBody FacturaRequestDTO request) {
+
+        FacturaVenta factura = facturaService.actualizarFactura(id, request);
+
+        FacturaReporteDTO reporte = new FacturaReporteDTO(
+                factura.getNumero(),
+                factura.getFechaEmision(),
+                factura.getCliente() != null
+                        ? factura.getCliente().getDenominacion()
+                        : "Consumidor Final",
+                factura.getCondicionIva().getDenominacion(),
+                factura.getPuntoVenta().getDescripcion(),
+                factura.getImporteTotal(),
+                factura.getDetalles().size()
+        );
+
+        return ResponseEntity.ok(reporte);
+    }
+
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> eliminar(@PathVariable Long id) {
+
+        facturaService.anularFactura(id);
+
+        return ResponseEntity.noContent().build();
+    }
+
 }
