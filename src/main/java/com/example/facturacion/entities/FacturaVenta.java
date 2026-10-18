@@ -55,7 +55,7 @@ public class FacturaVenta extends AuditoriaApp {
     private LocalDate fechaAnulacion;
     private String observaciones;
 
-    @OneToMany(mappedBy = "factura", cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "factura", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<FacturaVentaDetalle> detalles = new ArrayList<>();
 
     public void addDetalle(FacturaVentaDetalle detalle) {
