@@ -22,21 +22,15 @@ import com.example.facturacion.repositories.TipoMonedaRepository;
 import com.example.facturacion.repositories.UsuarioRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 
-
-
 import com.example.facturacion.dto.FacturaRequestDTO;
 import com.example.facturacion.dto.FacturaDetalleRequestDTO;
 
 import com.example.facturacion.entities.FacturaVenta;
 import com.example.facturacion.entities.FacturaVentaDetalle;
 
-
-
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
-
-
 
 import java.time.LocalDate;
 import java.util.HashMap;
@@ -46,25 +40,27 @@ import java.util.Map;
 @Service
 public class FacturaService {
 
-    private static final String SELECT_BASE =
-            "SELECT new com.example.facturacion.dto.FacturaReporteDTO(" +
-            " f.numero, " +
-            " f.fechaEmision, " +
-            " COALESCE(c.denominacion, 'Consumidor Final'), " +
-            " ci.denominacion, " +
-            " pv.descripcion, " +
-            " f.importeTotal, " +
-            " COUNT(d) " +
-            ") " +
-            "FROM FacturaVenta f " +
-            "LEFT JOIN f.cliente c " +
-            "JOIN f.condicionIva ci " +
-            "JOIN f.puntoVenta pv " +
-            "LEFT JOIN f.detalles d ";
+    private static final String SELECT_BASE
+            = "SELECT new com.example.facturacion.dto.FacturaReporteDTO("
+            + " f.id, "
+            + " f.numero, "
+            + " f.fechaEmision, "
+            + " COALESCE(c.denominacion, 'Consumidor Final'), "
+            + " ci.denominacion, "
+            + " pv.descripcion, "
+            + " f.importeTotal, "
+            + " COUNT(d), "
+            + " f.estado "
+            + ") "
+            + "FROM FacturaVenta f "
+            + "LEFT JOIN f.cliente c "
+            + "JOIN f.condicionIva ci "
+            + "JOIN f.puntoVenta pv "
+            + "LEFT JOIN f.detalles d ";
 
-    private static final String GROUP_BY =
-            "GROUP BY f.id, f.numero, f.fechaEmision, c.denominacion, " +
-            "ci.denominacion, pv.descripcion, f.importeTotal";
+    private static final String GROUP_BY
+            = "GROUP BY f.id, f.numero, f.fechaEmision, c.denominacion, "
+            + "ci.denominacion, pv.descripcion, f.importeTotal, f.estado";
 
     @Autowired
     private FacturaVentaRepository facturaVentaRepository;
@@ -97,7 +93,7 @@ public class FacturaService {
 
     @Transactional(readOnly = true)
     public List<FacturaReporteDTO> buscarFacturasFiltradas(LocalDate fechaDesde, LocalDate fechaHasta,
-                                                           String estado, Double montoMinimo) {
+            String estado, Double montoMinimo) {
         StringBuilder jpql = new StringBuilder(SELECT_BASE).append("WHERE 1=1 ");
         Map<String, Object> params = new HashMap<>();
 
@@ -123,7 +119,6 @@ public class FacturaService {
         params.forEach(query::setParameter);
         return query.getResultList();
     }
-
 
     private static final double IVA_PORCENTAJE = 21.0;
 
@@ -193,9 +188,9 @@ public class FacturaService {
         factura.setPuntoVenta(puntoVenta);
         factura.setEstado(
                 request.getEstado() == null
-                        || request.getEstado().isBlank()
-                        ? "PENDIENTE"
-                        : request.getEstado());
+                || request.getEstado().isBlank()
+                ? "PENDIENTE"
+                : request.getEstado());
         factura.setObservaciones(request.getObservaciones());
 
         factura.setFechaAlta(hoy);
@@ -218,28 +213,28 @@ public class FacturaService {
                         "La cantidad debe ser mayor que cero");
             }
 
-            double bonificacion =
-                    detalleRequest.getPorcentajeBonificacion();
+            double bonificacion
+                    = detalleRequest.getPorcentajeBonificacion();
 
             if (bonificacion < 0 || bonificacion > 100) {
                 throw new IllegalArgumentException(
                         "La bonificación debe estar entre 0 y 100");
             }
 
-            ListaPrecioArticulo precioArticulo =
-                    listaPrecioArticuloRepository
+            ListaPrecioArticulo precioArticulo
+                    = listaPrecioArticuloRepository
                             .findFirstByArticulo_Id(
                                     detalleRequest.getArticuloId())
                             .orElseThrow(() -> new IllegalArgumentException(
                                     "No existe una lista de precios para el artículo "
-                                            + detalleRequest.getArticuloId()));
+                                    + detalleRequest.getArticuloId()));
 
             double precioUnitario = precioArticulo.getPrecioVenta();
 
             double neto = redondear(
                     detalleRequest.getCantidad()
-                            * precioUnitario
-                            * (1 - bonificacion / 100));
+                    * precioUnitario
+                    * (1 - bonificacion / 100));
 
             double iva = redondear(neto * IVA_PORCENTAJE / 100);
 
@@ -283,7 +278,6 @@ public class FacturaService {
         // 5. Guardar la factura junto con sus detalles.
         return facturaVentaRepository.save(factura);
     }
-
 
     @Transactional
     public FacturaVenta actualizarFactura(Long id, FacturaRequestDTO request) {
@@ -390,14 +384,14 @@ public class FacturaService {
                     .findFirstByArticulo_Id(detalleRequest.getArticuloId())
                     .orElseThrow(() -> new IllegalArgumentException(
                             "No existe una lista de precios para el artículo "
-                                    + detalleRequest.getArticuloId()));
+                            + detalleRequest.getArticuloId()));
 
             double precioUnitario = precioArticulo.getPrecioVenta();
 
             double neto = redondear(
                     detalleRequest.getCantidad()
-                            * precioUnitario
-                            * (1 - bonificacion / 100));
+                    * precioUnitario
+                    * (1 - bonificacion / 100));
 
             double iva = redondear(neto * IVA_PORCENTAJE / 100);
             double subtotal = redondear(neto + iva);
@@ -440,7 +434,6 @@ public class FacturaService {
         return facturaVentaRepository.save(factura);
     }
 
-
     @Transactional
     public void anularFactura(Long id) {
 
@@ -477,12 +470,10 @@ public class FacturaService {
         facturaVentaRepository.save(factura);
     }
 
-
     private double redondear(double importe) {
         return BigDecimal.valueOf(importe)
                 .setScale(2, RoundingMode.HALF_UP)
                 .doubleValue();
     }
-
 
 }

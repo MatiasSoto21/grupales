@@ -1,3 +1,4 @@
+
 package com.example.facturacion.dto;
 
 import lombok.AllArgsConstructor;
@@ -13,6 +14,7 @@ import java.time.LocalDate;
 @NoArgsConstructor
 public class FacturaReporteDTO {
 
+    private Long id;
     private Long numeroFactura;
     private LocalDate fechaEmision;
     private String clienteDenominacion;
@@ -20,4 +22,6 @@ public class FacturaReporteDTO {
     private String puntoVentaDescripcion;
     private double importeTotal;
     private long cantidadItems;
+    private String estado;
 }
+
