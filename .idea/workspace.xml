@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="f97e8370-1757-43fd-96be-2127011d3857" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/.gitattributes" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.mvn/wrapper/maven-wrapper.properties" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/mvnw" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/mvnw.cmd" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/pom.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/example/facturacion/DataInitializer.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/example/facturacion/FacturacionApplication.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/example/facturacion/controllers/FacturaRestController.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/example/facturacion/dto/FacturaDetalleRequestDTO.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/example/facturacion/dto/FacturaReporteDTO.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/example/facturacion/dto/FacturaRequestDTO.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/example/facturacion/entities/Articulo.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/example/facturacion/entities/AuditoriaApp.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/example/facturacion/entities/Cliente.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/example/facturacion/entities/CondicionIva.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/example/facturacion/entities/Contacto.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/example/facturacion/entities/Domicilio.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/example/facturacion/entities/EntityId.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/example/facturacion/entities/FacturaVenta.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/example/facturacion/entities/FacturaVentaDetalle.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/example/facturacion/entities/ListaPrecio.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/example/facturacion/entities/ListaPrecioArticulo.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/example/facturacion/entities/Marca.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/example/facturacion/entities/PuntoVenta.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/example/facturacion/entities/Rubro.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/example/facturacion/entities/TipoMoneda.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/example/facturacion/entities/Usuario.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/example/facturacion/repositories/ClienteRepository.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/example/facturacion/repositories/CondicionIvaRepository.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/example/facturacion/repositories/FacturaVentaRepository.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/example/facturacion/repositories/ListaPrecioArticuloRepository.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/example/facturacion/repositories/PuntoVentaRepository.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/example/facturacion/repositories/TipoMonedaRepository.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/example/facturacion/repositories/UsuarioRepository.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/example/facturacion/services/ConsultasService.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/example/facturacion/services/FacturaService.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/example/facturacion/services/ReporteService.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/resources/application.properties" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/test/java/com/example/facturacion/FacturacionApplicationTests.java" beforeDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="Interface" />
+        <option value="Class" />
+      </list>
+    </option>
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="GitHubPullRequestSearchHistory">{
+  &quot;lastFilter&quot;: {
+    &quot;state&quot;: &quot;OPEN&quot;,
+    &quot;assignee&quot;: &quot;MatiasSoto21&quot;
+  }
+}</component>
+  <component name="GithubPullRequestsUISettings">{
+  &quot;selectedUrlAndAccountId&quot;: {
+    &quot;url&quot;: &quot;https://github.com/MatiasSoto21/grupales.git&quot;,
+    &quot;accountId&quot;: &quot;45e9b7fb-bdc9-4d2c-870c-35f0fb549a1e&quot;
+  }
+}</component>
+  <component name="MavenImportPreferences">
+    <option name="generalSettings">
+      <MavenGeneralSettings>
+        <option name="mavenHomeTypeForPersistence" value="WRAPPER" />
+      </MavenGeneralSettings>
+    </option>
+  </component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 8,
+  &quot;fromUser&quot;: false
+}</component>
+  <component name="ProjectId" id="3KYhpqvLRrJ7nsWK7UMQKSAlugm" />
+  <component name="ProjectLevelVcsManager">
+    <ConfirmationsSetting value="1" id="Add" />
+  </component>
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "RunOnceActivity.typescript.service.memoryLimit.init": "true",
+    "Spring Boot.FacturacionApplication.executor": "Run",
+    "codeWithMe.voiceChat.enabledByDefault": "false",
+    "git-widget-placeholder": "matiasbranch",
+    "git.auto.fetch.suggestion.counter": "1",
+    "ignore.virus.scanning.warn.message": "true",
+    "kotlin-language-version-configured": "true",
+    "last_opened_file_path": "C:/Users/matia/IdeaProjects/grupales",
+    "nodejs_package_manager_path": "npm",
+    "project.structure.last.edited": "Modules",
+    "project.structure.proportion": "0.0",
+    "project.structure.side.proportion": "0.0",
+    "settings.editor.selected.configurable": "reference.settings.project.maven.runner"
+  }
+}]]></component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="f97e8370-1757-43fd-96be-2127011d3857" name="Changes" comment="" />
+      <created>1791740595266</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1791740595266</updated>
+    </task>
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
+</project>

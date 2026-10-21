@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Facturación | Gestión de ventas</title><link rel="stylesheet" href="/app.css">
+</head>
+<body>
+<header class="topbar"><div class="topbar-inner">
+  <a class="brand" href="/"><span class="brand-mark">▤</span><span>Facturación<small>Gestión de ventas</small></span></a>
+  <div class="top-actions"><a class="btn btn-secondary" href="/api/facturas/pdf" target="_blank">Descargar PDF ↗</a><a class="btn btn-secondary" href="/api/facturas/excel">Exportar Excel ↓</a><a class="btn btn-primary" href="/factura-form.html">＋ Nueva factura</a></div>
+</div></header>
+<main class="container">
+  <div class="page-head"><div><p class="eyebrow">Panel de control</p><h1>Facturas de venta</h1><p class="subtitle">Consultá, filtrá y administrá las facturas de tu sistema.</p></div><div id="api-status" class="muted">Conectando con el backend…</div></div>
+  <div id="alerta" class="alert hidden"></div>
+  <section class="stats">
+    <div class="stat"><div class="stat-label">Facturas encontradas</div><div class="stat-value" id="stat-cantidad">—</div></div>
+    <div class="stat"><div class="stat-label">Importe total listado</div><div class="stat-value" id="stat-total">—</div></div>
+    <div class="stat"><div class="stat-label">Facturas anuladas</div><div class="stat-value" id="stat-anuladas">—</div></div>
+  </section>
+  <section class="card">
+    <div class="card-head"><h2>Filtros de búsqueda</h2><span class="muted" style="font-size:.8rem">Aplican al listado y a las exportaciones</span></div>
+    <div class="card-body"><form id="filtros-form" class="filters">
+      <div class="field"><label for="fechaDesde">Fecha desde</label><input type="date" id="fechaDesde" name="fechaDesde"></div>
+      <div class="field"><label for="fechaHasta">Fecha hasta</label><input type="date" id="fechaHasta" name="fechaHasta"></div>
+      <div class="field"><label for="estado">Estado</label><select id="estado" name="estado"><option value="">Todos los estados</option><option value="EMITIDA">EMITIDA</option><option value="PENDIENTE">PENDIENTE</option><option value="PAGADA">PAGADA</option><option value="ANULADA">ANULADA</option></select></div>
+      <div class="field"><label for="montoMinimo">Importe mínimo</label><input type="number" id="montoMinimo" name="montoMinimo" min="0" step="0.01" placeholder="Ej. 10000"></div>
+      <div class="filters-actions"><button class="btn btn-primary" type="submit">Buscar facturas</button><button class="btn btn-secondary" type="button" id="btn-limpiar">Limpiar</button></div>
+    </form></div>
+  </section>
+  <section class="card">
+    <div class="card-head"><h2>Listado de facturas</h2><span id="resultado-texto" class="muted" style="font-size:.82rem">Cargando…</span></div>
+    <div class="table-wrap"><table class="table"><thead><tr><th>N.º factura</th><th>Fecha</th><th>Cliente</th><th>Condición IVA</th><th>Punto de venta</th><th>Estado</th><th class="text-right">Total</th><th class="text-center">Ítems</th><th>Acciones</th></tr></thead><tbody id="facturas-tbody"><tr><td colspan="9" class="loading">Cargando facturas…</td></tr></tbody></table></div>
+  </section>
+  <p class="footnote">La opción “Anular” realiza una baja lógica: conserva la factura y registra su fecha de anulación en el sistema.</p>
+</main>
+<script type="module" src="/dist/facturas.js"></script>
+</body></html>
