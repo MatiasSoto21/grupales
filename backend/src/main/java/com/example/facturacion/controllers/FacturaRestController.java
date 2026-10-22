@@ -3,6 +3,7 @@ package com.example.facturacion.controllers;
 import com.example.facturacion.dto.FacturaReporteDTO;
 import com.example.facturacion.dto.FacturaDetalleRequestDTO;
 import com.example.facturacion.dto.FacturaRequestDTO;
+import com.example.facturacion.dto.PageResponseDTO;
 
 import com.example.facturacion.repositories.FacturaVentaRepository;
 
@@ -49,13 +50,40 @@ public class FacturaRestController {
     private final FacturaVentaRepository facturaVentaRepository;
 
     @GetMapping
-    public List<FacturaReporteDTO> listar(
+    public PageResponseDTO<FacturaReporteDTO> listar(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaDesde,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaHasta,
             @RequestParam(required = false) String estado,
-            @RequestParam(required = false) Double montoMinimo) {
+            @RequestParam(required = false) Double montoMinimo,
+            @RequestParam(required = false) Long clienteId,
+            @RequestParam(defaultValue = "false") boolean sinCliente,
+            @RequestParam(required = false) Long numero,
+            @RequestParam(required = false) Long numeroDesde,
+            @RequestParam(required = false) Long numeroHasta,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
 
-        return facturaService.buscarFacturasFiltradas(fechaDesde, fechaHasta, estado, montoMinimo);
+        if (page < 0 || size < 1 || page > Integer.MAX_VALUE / size) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "La página debe ser >= 0 y el tamaño debe ser > 0");
+        }
+
+        List<FacturaReporteDTO> content = facturaService.buscarFacturasFiltradas(
+            fechaDesde, fechaHasta, estado, montoMinimo,
+            clienteId, sinCliente, numero, numeroDesde, numeroHasta,
+            page, size
+        );
+
+        long totalElements = facturaService.contarFacturasFiltradas(
+            fechaDesde, fechaHasta, estado, montoMinimo,
+            clienteId, sinCliente, numero, numeroDesde, numeroHasta
+        );
+
+        int totalPages = (int) Math.ceil((double) totalElements / size);
+        if (totalPages == 0) totalPages = 1;
+
+        return new PageResponseDTO<>(content, totalElements, totalPages, page, size);
     }
 
     @GetMapping("/pdf")
@@ -63,10 +91,18 @@ public class FacturaRestController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaDesde,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaHasta,
             @RequestParam(required = false) String estado,
-            @RequestParam(required = false) Double montoMinimo) {
+            @RequestParam(required = false) Double montoMinimo,
+            @RequestParam(required = false) Long clienteId,
+            @RequestParam(defaultValue = "false") boolean sinCliente,
+            @RequestParam(required = false) Long numero,
+            @RequestParam(required = false) Long numeroDesde,
+            @RequestParam(required = false) Long numeroHasta) {
 
         List<FacturaReporteDTO> facturas
-                = facturaService.buscarFacturasFiltradas(fechaDesde, fechaHasta, estado, montoMinimo);
+                = facturaService.buscarFacturasFiltradas(
+                    fechaDesde, fechaHasta, estado, montoMinimo,
+                    clienteId, sinCliente, numero, numeroDesde, numeroHasta
+                );
 
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=reporte-facturas.pdf")
@@ -79,10 +115,18 @@ public class FacturaRestController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaDesde,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaHasta,
             @RequestParam(required = false) String estado,
-            @RequestParam(required = false) Double montoMinimo) throws IOException {
+            @RequestParam(required = false) Double montoMinimo,
+            @RequestParam(required = false) Long clienteId,
+            @RequestParam(defaultValue = "false") boolean sinCliente,
+            @RequestParam(required = false) Long numero,
+            @RequestParam(required = false) Long numeroDesde,
+            @RequestParam(required = false) Long numeroHasta) throws IOException {
 
         List<FacturaReporteDTO> facturas
-                = facturaService.buscarFacturasFiltradas(fechaDesde, fechaHasta, estado, montoMinimo);
+                = facturaService.buscarFacturasFiltradas(
+                    fechaDesde, fechaHasta, estado, montoMinimo,
+                    clienteId, sinCliente, numero, numeroDesde, numeroHasta
+                );
 
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=reporte-facturas.xlsx")
@@ -178,6 +222,12 @@ public class FacturaRestController {
 
         facturaService.anularFactura(id);
 
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{id}/reactivar")
+    public ResponseEntity<Void> reactivar(@PathVariable Long id) {
+        facturaService.reactivarFactura(id);
         return ResponseEntity.noContent().build();
     }
 

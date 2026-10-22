@@ -93,7 +93,16 @@ public class FacturaService {
 
     @Transactional(readOnly = true)
     public List<FacturaReporteDTO> buscarFacturasFiltradas(LocalDate fechaDesde, LocalDate fechaHasta,
-            String estado, Double montoMinimo) {
+            String estado, Double montoMinimo, Long clienteId, boolean sinCliente, Long numero,
+            Long numeroDesde, Long numeroHasta) {
+        return buscarFacturasFiltradas(fechaDesde, fechaHasta, estado, montoMinimo,
+                clienteId, sinCliente, numero, numeroDesde, numeroHasta, -1, -1);
+    }
+
+    @Transactional(readOnly = true)
+    public List<FacturaReporteDTO> buscarFacturasFiltradas(LocalDate fechaDesde, LocalDate fechaHasta,
+            String estado, Double montoMinimo, Long clienteId, boolean sinCliente, Long numero,
+            Long numeroDesde, Long numeroHasta, int page, int size) {
         StringBuilder jpql = new StringBuilder(SELECT_BASE).append("WHERE 1=1 ");
         Map<String, Object> params = new HashMap<>();
 
@@ -113,11 +122,84 @@ public class FacturaService {
             jpql.append("AND f.importeTotal >= :montoMinimo ");
             params.put("montoMinimo", montoMinimo);
         }
-        jpql.append(GROUP_BY);
+        if (clienteId != null) {
+            jpql.append("AND f.cliente.id = :clienteId ");
+            params.put("clienteId", clienteId);
+        }
+        if (sinCliente) {
+            jpql.append("AND f.cliente IS NULL ");
+        }
+        if (numero != null) {
+            jpql.append("AND f.numero = :numero ");
+            params.put("numero", numero);
+        }
+        if (numeroDesde != null) {
+            jpql.append("AND f.numero >= :numeroDesde ");
+            params.put("numeroDesde", numeroDesde);
+        }
+        if (numeroHasta != null) {
+            jpql.append("AND f.numero <= :numeroHasta ");
+            params.put("numeroHasta", numeroHasta);
+        }
+        jpql.append(GROUP_BY).append(" ORDER BY f.fechaEmision DESC, f.id DESC");
 
         TypedQuery<FacturaReporteDTO> query = em.createQuery(jpql.toString(), FacturaReporteDTO.class);
         params.forEach(query::setParameter);
+
+        if (page >= 0 && size > 0) {
+            query.setFirstResult(page * size);
+            query.setMaxResults(size);
+        }
+
         return query.getResultList();
+    }
+
+    @Transactional(readOnly = true)
+    public long contarFacturasFiltradas(LocalDate fechaDesde, LocalDate fechaHasta,
+            String estado, Double montoMinimo, Long clienteId, boolean sinCliente, Long numero,
+            Long numeroDesde, Long numeroHasta) {
+        StringBuilder jpql = new StringBuilder("SELECT COUNT(f) FROM FacturaVenta f WHERE 1=1 ");
+        Map<String, Object> params = new HashMap<>();
+
+        if (fechaDesde != null) {
+            jpql.append("AND f.fechaEmision >= :fechaDesde ");
+            params.put("fechaDesde", fechaDesde);
+        }
+        if (fechaHasta != null) {
+            jpql.append("AND f.fechaEmision <= :fechaHasta ");
+            params.put("fechaHasta", fechaHasta);
+        }
+        if (estado != null && !estado.trim().isEmpty()) {
+            jpql.append("AND f.estado = :estado ");
+            params.put("estado", estado);
+        }
+        if (montoMinimo != null) {
+            jpql.append("AND f.importeTotal >= :montoMinimo ");
+            params.put("montoMinimo", montoMinimo);
+        }
+        if (clienteId != null) {
+            jpql.append("AND f.cliente.id = :clienteId ");
+            params.put("clienteId", clienteId);
+        }
+        if (sinCliente) {
+            jpql.append("AND f.cliente IS NULL ");
+        }
+        if (numero != null) {
+            jpql.append("AND f.numero = :numero ");
+            params.put("numero", numero);
+        }
+        if (numeroDesde != null) {
+            jpql.append("AND f.numero >= :numeroDesde ");
+            params.put("numeroDesde", numeroDesde);
+        }
+        if (numeroHasta != null) {
+            jpql.append("AND f.numero <= :numeroHasta ");
+            params.put("numeroHasta", numeroHasta);
+        }
+
+        TypedQuery<Long> query = em.createQuery(jpql.toString(), Long.class);
+        params.forEach(query::setParameter);
+        return query.getSingleResult();
     }
 
     private static final double IVA_PORCENTAJE = 21.0;
@@ -208,9 +290,11 @@ public class FacturaService {
                         "Cada detalle debe indicar un artículo");
             }
 
-            if (detalleRequest.getCantidad() <= 0) {
+            if (!Double.isFinite(detalleRequest.getCantidad())
+                    || detalleRequest.getCantidad() < 1
+                    || detalleRequest.getCantidad() % 1 != 0) {
                 throw new IllegalArgumentException(
-                        "La cantidad debe ser mayor que cero");
+                        "La cantidad debe ser un número entero mayor que cero");
             }
 
             double bonificacion
@@ -349,7 +433,14 @@ public class FacturaService {
         factura.setPuntoVenta(puntoVenta);
 
         if (request.getEstado() != null && !request.getEstado().isBlank()) {
+            boolean estabaAnulada = "ANULADA".equalsIgnoreCase(factura.getEstado());
             factura.setEstado(request.getEstado());
+            if (!"ANULADA".equalsIgnoreCase(request.getEstado())
+                    && (estabaAnulada
+                    || factura.getFechaAnulacion() != null
+                    || factura.getFechaBaja() != null)) {
+                limpiarDatosBaja(factura);
+            }
         }
 
         factura.setObservaciones(request.getObservaciones());
@@ -368,9 +459,11 @@ public class FacturaService {
                         "Cada detalle debe indicar un artículo");
             }
 
-            if (detalleRequest.getCantidad() <= 0) {
+            if (!Double.isFinite(detalleRequest.getCantidad())
+                    || detalleRequest.getCantidad() < 1
+                    || detalleRequest.getCantidad() % 1 != 0) {
                 throw new IllegalArgumentException(
-                        "La cantidad debe ser mayor que cero");
+                        "La cantidad debe ser un número entero mayor que cero");
             }
 
             double bonificacion = detalleRequest.getPorcentajeBonificacion();
@@ -468,6 +561,38 @@ public class FacturaService {
 
         // 5. Guardar los cambios sin eliminar el registro.
         facturaVentaRepository.save(factura);
+    }
+
+    @Transactional
+    public void reactivarFactura(Long id) {
+        FacturaVenta factura = facturaVentaRepository.findById(id)
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.NOT_FOUND,
+                        "No existe la factura con ID " + id));
+
+        if (!"ANULADA".equalsIgnoreCase(factura.getEstado())
+                && factura.getFechaAnulacion() == null
+                && factura.getFechaBaja() == null) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.CONFLICT,
+                    "La factura no está anulada");
+        }
+
+        Usuario usuario = usuarioRepository.findByUsuario("admin")
+                .orElseThrow(() -> new IllegalStateException(
+                        "No existe el usuario admin para la auditoría"));
+
+        factura.setEstado("EMITIDA");
+        limpiarDatosBaja(factura);
+        factura.setFechaModificacion(LocalDate.now());
+        factura.setUsuarioModificacion(usuario);
+        facturaVentaRepository.save(factura);
+    }
+
+    private void limpiarDatosBaja(FacturaVenta factura) {
+        factura.setFechaAnulacion(null);
+        factura.setFechaBaja(null);
+        factura.setUsuarioBaja(null);
     }
 
     private double redondear(double importe) {

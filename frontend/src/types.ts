@@ -10,6 +10,31 @@ export interface FacturaResumen {
   estado: string;
 }
 
+export interface GetFacturasOptions {
+  fechaDesde?: string;
+  fechaHasta?: string;
+  estado?: string;
+  montoMinimo?: number;
+  clienteId?: number;
+  sinCliente?: boolean;
+  numero?: number;
+  numeroDesde?: number;
+  numeroHasta?: number;
+  page?: number;
+  size?: number;
+}
+
+export interface PageResponse<T> {
+  content: T[];
+  totalElements: number;
+  totalPages: number;
+  number: number;
+  size: number;
+  first: boolean;
+  last: boolean;
+  hasContent: boolean;
+}
+
 export interface ArticuloCatalogo {
   id: number;
   codigo?: string | number;
@@ -23,6 +48,16 @@ export interface OpcionCatalogo {
   descripcion?: string;
   numero?: number;
   simbolo?: string;
+}
+
+export interface ClienteRequest {
+  cuitCuil: string;
+  denominacion: string;
+  email?: string;
+  telefono?: string;
+  celular?: string;
+  nombreCalle?: string;
+  numeroCalle?: string;
 }
 
 export interface Catalogos {

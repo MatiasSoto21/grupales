@@ -1,4 +1,4 @@
-import { getCatalogos, getFactura, getFacturas, guardarFactura } from './api.js';
+import { crearCliente, getAllFacturas, getCatalogos, getFactura, guardarFactura } from './api.js';
 import { byId, clearAlert, currency, makeOption, showAlert } from './dom.js';
 import type { ArticuloCatalogo, Catalogos, DetalleFactura, DetalleRequest, FacturaRequest } from './types.js';
 
@@ -10,6 +10,7 @@ let catalogos: Catalogos | null = null;
 let lineas: DetalleFactura[] = [];
 let estadoActual = 'EMITIDA';
 let guardando = false;
+let creandoCliente = false;
 
 function articleById(id: string | number | undefined): ArticuloCatalogo | undefined {
   return (catalogos?.articulos ?? []).find(article => String(article.id) === String(id));
@@ -44,6 +45,58 @@ async function loadCatalogs(): Promise<void> {
   currencySelect.replaceChildren(makeOption('', 'Seleccioná una moneda'));
   for (const money of catalogos.tiposMoneda ?? []) {
     currencySelect.append(makeOption(money.id, `${money.simbolo ?? ''} ${money.denominacion}`.trim()));
+  }
+}
+
+function closeClientPanel(): void {
+  const panel = byId<HTMLFieldSetElement>('nuevo-cliente-panel');
+  panel.disabled = true;
+  panel.classList.add('hidden');
+  byId<HTMLButtonElement>('btn-guardar').disabled = false;
+  panel.querySelectorAll<HTMLInputElement>('input').forEach(input => { input.value = ''; });
+}
+
+async function saveNewClient(): Promise<void> {
+  if (creandoCliente) return;
+
+  const cuitCuil = byId<HTMLInputElement>('nuevo-cliente-cuit').value.trim();
+  const denominacion = byId<HTMLInputElement>('nuevo-cliente-denominacion').value.trim();
+  if (!cuitCuil || !denominacion) {
+    showAlert('CUIT/CUIL y denominación son obligatorios para crear el cliente.');
+    return;
+  }
+
+  creandoCliente = true;
+  const saveButton = byId<HTMLButtonElement>('btn-guardar-cliente');
+  const cancelButton = byId<HTMLButtonElement>('btn-cancelar-cliente');
+  saveButton.disabled = true;
+  saveButton.textContent = 'Guardando…';
+  cancelButton.disabled = true;
+  clearAlert();
+
+  try {
+    const cliente = await crearCliente({
+      cuitCuil,
+      denominacion,
+      email: byId<HTMLInputElement>('nuevo-cliente-email').value.trim(),
+      telefono: byId<HTMLInputElement>('nuevo-cliente-telefono').value.trim(),
+      celular: byId<HTMLInputElement>('nuevo-cliente-celular').value.trim(),
+      nombreCalle: byId<HTMLInputElement>('nuevo-cliente-calle').value.trim(),
+      numeroCalle: byId<HTMLInputElement>('nuevo-cliente-numero-calle').value.trim()
+    });
+
+    const clientSelect = byId<HTMLSelectElement>('clienteId');
+    clientSelect.append(makeOption(cliente.id, cliente.denominacion));
+    clientSelect.value = String(cliente.id);
+    closeClientPanel();
+    showAlert(`Cliente "${cliente.denominacion}" creado y seleccionado para la factura.`, 'success');
+  } catch (error: unknown) {
+    showAlert(`No se pudo crear el cliente: ${error instanceof Error ? error.message : String(error)}`);
+  } finally {
+    creandoCliente = false;
+    saveButton.disabled = false;
+    saveButton.textContent = 'Guardar cliente';
+    cancelButton.disabled = false;
   }
 }
 
@@ -99,7 +152,7 @@ function renderLines(): void {
     const quantityCell = document.createElement('td');
     const quantity = document.createElement('input');
     quantity.className = 'qty-input';
-    quantity.type = 'number'; quantity.min = '0.01'; quantity.step = '0.01'; quantity.required = true;
+    quantity.type = 'number'; quantity.min = '1'; quantity.step = '1'; quantity.required = true;
     quantity.value = String(line.cantidad);
     quantity.addEventListener('input', () => { line.cantidad = Number(quantity.value) || 0; updateTotals(); });
     quantityCell.append(quantity);
@@ -154,8 +207,11 @@ async function loadInvoiceForEdit(id: number): Promise<void> {
   lineas = (invoice.detalles ?? []).map(detail => createLine(detail));
   renderLines();
   if (estadoActual.toUpperCase() === 'ANULADA') {
-    byId<HTMLButtonElement>('btn-guardar').disabled = true;
-    showAlert('Esta factura está anulada y no se puede editar.');
+    const reactivationField = byId<HTMLDivElement>('reactivacion-field');
+    const reactivationStatus = byId<HTMLSelectElement>('estado-reactivacion');
+    reactivationField.classList.remove('hidden');
+    reactivationStatus.required = true;
+    showAlert('La factura está anulada. Podés editarla y elegir un estado para reactivarla.');
   }
 }
 
@@ -176,21 +232,37 @@ function readForm(): FacturaRequest {
     puntoVentaId: Number(byId<HTMLSelectElement>('puntoVentaId').value),
     importeCobrado: Number(byId<HTMLInputElement>('importeCobrado').value || 0),
     importeSaldo: 0,
-    estado: estadoActual || 'EMITIDA',
+    estado: estadoActual.toUpperCase() === 'ANULADA'
+      ? byId<HTMLSelectElement>('estado-reactivacion').value
+      : estadoActual,
     observaciones: byId<HTMLInputElement>('observaciones').value.trim(),
     detalles: details
   };
 }
 
 byId<HTMLButtonElement>('btn-agregar').addEventListener('click', () => { lineas.push(createLine()); renderLines(); });
+byId<HTMLButtonElement>('btn-mostrar-cliente').addEventListener('click', () => {
+  clearAlert();
+  byId<HTMLFieldSetElement>('nuevo-cliente-panel').disabled = false;
+  byId<HTMLFieldSetElement>('nuevo-cliente-panel').classList.remove('hidden');
+  byId<HTMLButtonElement>('btn-guardar').disabled = true;
+  byId<HTMLInputElement>('nuevo-cliente-cuit').focus();
+});
+byId<HTMLButtonElement>('btn-cancelar-cliente').addEventListener('click', closeClientPanel);
+byId<HTMLButtonElement>('btn-guardar-cliente').addEventListener('click', () => { void saveNewClient(); });
 byId<HTMLFormElement>('factura-form').addEventListener('submit', async event => {
   event.preventDefault();
   clearAlert();
+  if (!byId<HTMLFieldSetElement>('nuevo-cliente-panel').disabled) return;
   if (guardando) return;
   const body = readForm();
+  if (estadoActual.toUpperCase() === 'ANULADA' && !body.estado) {
+    showAlert('Elegí el nuevo estado para reactivar la factura.');
+    return;
+  }
   if (body.detalles.length === 0) { showAlert('Agregá al menos un producto.'); return; }
-  if (body.detalles.some(detail => !detail.articuloId || !Number.isFinite(detail.cantidad) || detail.cantidad <= 0)) {
-    showAlert('Revisá los productos: todos deben tener artículo y cantidad mayor a cero.'); return;
+  if (body.detalles.some(detail => !detail.articuloId || !Number.isInteger(detail.cantidad) || detail.cantidad < 1)) {
+    showAlert('Revisá los productos: todos deben tener artículo y una cantidad entera mayor a cero.'); return;
   }
   if (body.detalles.some(detail => detail.porcentajeBonificacion < 0 || detail.porcentajeBonificacion > 100)) {
     showAlert('La bonificación debe estar entre 0 y 100%.'); return;
@@ -222,7 +294,7 @@ async function init(): Promise<void> {
       await loadInvoiceForEdit(idEdicion);
     } else {
       try {
-        const invoices = await getFacturas();
+        const invoices = await getAllFacturas();
         const highestNumber = invoices.reduce((max, invoice) => Math.max(max, Number(invoice.numeroFactura) || 0), 0);
         byId<HTMLInputElement>('numero').value = String(highestNumber + 1 || 1);
       } catch { /* El número se puede ingresar manualmente si falla la consulta. */ }

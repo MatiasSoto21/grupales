@@ -14,12 +14,15 @@
   <div id="alerta" class="alert hidden"></div>
   <section class="stats">
     <div class="stat"><div class="stat-label">Facturas encontradas</div><div class="stat-value" id="stat-cantidad">—</div></div>
-    <div class="stat"><div class="stat-label">Importe total listado</div><div class="stat-value" id="stat-total">—</div></div>
-    <div class="stat"><div class="stat-label">Facturas anuladas</div><div class="stat-value" id="stat-anuladas">—</div></div>
+    <div class="stat"><div class="stat-label">Importe total de esta página</div><div class="stat-value" id="stat-total">—</div></div>
   </section>
   <section class="card">
     <div class="card-head"><h2>Filtros de búsqueda</h2><span class="muted" style="font-size:.8rem">Aplican al listado y a las exportaciones</span></div>
     <div class="card-body"><form id="filtros-form" class="filters">
+      <div class="field"><label for="clienteId">Cliente</label><select id="clienteId" name="clienteId"><option value="">Todos los clientes</option></select></div>
+      <div class="field"><label for="numero">N.º de comprobante exacto</label><input type="number" id="numero" name="numero" min="0" step="1" placeholder="Ej. 1045"></div>
+      <div class="field"><label for="numeroDesde">Comprobante desde</label><input type="number" id="numeroDesde" name="numeroDesde" min="0" step="1"></div>
+      <div class="field"><label for="numeroHasta">Comprobante hasta</label><input type="number" id="numeroHasta" name="numeroHasta" min="0" step="1"></div>
       <div class="field"><label for="fechaDesde">Fecha desde</label><input type="date" id="fechaDesde" name="fechaDesde"></div>
       <div class="field"><label for="fechaHasta">Fecha hasta</label><input type="date" id="fechaHasta" name="fechaHasta"></div>
       <div class="field"><label for="estado">Estado</label><select id="estado" name="estado"><option value="">Todos los estados</option><option value="EMITIDA">EMITIDA</option><option value="PENDIENTE">PENDIENTE</option><option value="PAGADA">PAGADA</option><option value="ANULADA">ANULADA</option></select></div>
@@ -30,6 +33,7 @@
   <section class="card">
     <div class="card-head"><h2>Listado de facturas</h2><span id="resultado-texto" class="muted" style="font-size:.82rem">Cargando…</span></div>
     <div class="table-wrap"><table class="table"><thead><tr><th>N.º factura</th><th>Fecha</th><th>Cliente</th><th>Condición IVA</th><th>Punto de venta</th><th>Estado</th><th class="text-right">Total</th><th class="text-center">Ítems</th><th>Acciones</th></tr></thead><tbody id="facturas-tbody"><tr><td colspan="9" class="loading">Cargando facturas…</td></tr></tbody></table></div>
+    <nav id="pagination" class="pagination-container" aria-label="Paginación de facturas"></nav>
   </section>
   <p class="footnote">La opción “Anular” realiza una baja lógica: conserva la factura y registra su fecha de anulación en el sistema.</p>
 </main>

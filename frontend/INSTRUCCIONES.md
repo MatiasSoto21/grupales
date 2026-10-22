@@ -29,13 +29,19 @@ Para desarrollar y recompilar automáticamente, ejecutá `npm run dev`.
 - `backend-patches/`: archivos Java requeridos para completar los endpoints de integración.
 
 ## Endpoints del backend usados
-- `GET /api/facturas` y filtros por fecha, estado e importe mínimo.
+- `GET /api/facturas?page=0&size=10` para el listado paginado (la página comienza en 0; valores predeterminados: página 0 y 10 registros), además de filtros por cliente, comprobante exacto o rango, fecha, estado e importe mínimo.
 - `GET /api/facturas/{id}` para recuperar una factura al editar.
 - `POST /api/facturas` para crear.
 - `PUT /api/facturas/{id}` para actualizar.
 - `DELETE /api/facturas/{id}` para anular lógicamente.
+- `POST /api/facturas/{id}/reactivar` para volver a activar una factura anulada (estado `EMITIDA`); desde la edición también se puede elegir `EMITIDA`, `PENDIENTE` o `PAGADA`.
 - `GET /api/catalogos` para clientes, condiciones de IVA, puntos de venta, monedas y artículos.
+- `POST /api/clientes` para crear un cliente desde el formulario de factura. CUIT/CUIL y denominación son obligatorios; los datos de contacto y domicilio son opcionales. El cliente creado se selecciona en la factura sin perder el borrador.
+- La cantidad de cada ítem de factura debe ser un entero mayor que cero; las bonificaciones pueden expresarse con decimales.
 - `GET /api/facturas/pdf` y `GET /api/facturas/excel` para exportar informes.
+
+Los controles de paginación se muestran debajo del listado. Las exportaciones incluyen todos los resultados que coinciden con los filtros, independientemente de la página seleccionada.
+El filtro `sinCliente=true` devuelve facturas sin cliente asignado; también se aplica a las exportaciones.
 
 ## Integración
 Los archivos de `backend-patches/` son referencia para los cambios de integración explicados en la versión anterior del proyecto. No reemplaces archivos del backend que ya hayas modificado y probado sin comparar primero el contenido. El frontend espera que el DTO del listado incluya `id`, `numeroFactura`, `fechaEmision`, `clienteDenominacion`, `condicionIva`, `puntoVentaDescripcion`, `importeTotal`, `cantidadItems` y `estado`.

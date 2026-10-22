@@ -1,4 +1,4 @@
-import { getCatalogos, getFactura, getFacturas, guardarFactura } from './api.js';
+import { crearCliente, getAllFacturas, getCatalogos, getFactura, guardarFactura } from './api.js';
 import { byId, clearAlert, currency, makeOption, showAlert } from './dom.js';
 const API_URL = 'http://localhost:8080/api/facturas';
 const params = new URLSearchParams(window.location.search);
@@ -8,6 +8,7 @@ let catalogos = null;
 let lineas = [];
 let estadoActual = 'EMITIDA';
 let guardando = false;
+let creandoCliente = false;
 function articleById(id) {
     return (catalogos?.articulos ?? []).find(article => String(article.id) === String(id));
 }
@@ -38,6 +39,55 @@ async function loadCatalogs() {
     currencySelect.replaceChildren(makeOption('', 'Seleccioná una moneda'));
     for (const money of catalogos.tiposMoneda ?? []) {
         currencySelect.append(makeOption(money.id, `${money.simbolo ?? ''} ${money.denominacion}`.trim()));
+    }
+}
+function closeClientPanel() {
+    const panel = byId('nuevo-cliente-panel');
+    panel.disabled = true;
+    panel.classList.add('hidden');
+    byId('btn-guardar').disabled = false;
+    panel.querySelectorAll('input').forEach(input => { input.value = ''; });
+}
+async function saveNewClient() {
+    if (creandoCliente)
+        return;
+    const cuitCuil = byId('nuevo-cliente-cuit').value.trim();
+    const denominacion = byId('nuevo-cliente-denominacion').value.trim();
+    if (!cuitCuil || !denominacion) {
+        showAlert('CUIT/CUIL y denominación son obligatorios para crear el cliente.');
+        return;
+    }
+    creandoCliente = true;
+    const saveButton = byId('btn-guardar-cliente');
+    const cancelButton = byId('btn-cancelar-cliente');
+    saveButton.disabled = true;
+    saveButton.textContent = 'Guardando…';
+    cancelButton.disabled = true;
+    clearAlert();
+    try {
+        const cliente = await crearCliente({
+            cuitCuil,
+            denominacion,
+            email: byId('nuevo-cliente-email').value.trim(),
+            telefono: byId('nuevo-cliente-telefono').value.trim(),
+            celular: byId('nuevo-cliente-celular').value.trim(),
+            nombreCalle: byId('nuevo-cliente-calle').value.trim(),
+            numeroCalle: byId('nuevo-cliente-numero-calle').value.trim()
+        });
+        const clientSelect = byId('clienteId');
+        clientSelect.append(makeOption(cliente.id, cliente.denominacion));
+        clientSelect.value = String(cliente.id);
+        closeClientPanel();
+        showAlert(`Cliente "${cliente.denominacion}" creado y seleccionado para la factura.`, 'success');
+    }
+    catch (error) {
+        showAlert(`No se pudo crear el cliente: ${error instanceof Error ? error.message : String(error)}`);
+    }
+    finally {
+        creandoCliente = false;
+        saveButton.disabled = false;
+        saveButton.textContent = 'Guardar cliente';
+        cancelButton.disabled = false;
     }
 }
 function calculateSubtotal(line) {
@@ -93,8 +143,8 @@ function renderLines() {
         const quantity = document.createElement('input');
         quantity.className = 'qty-input';
         quantity.type = 'number';
-        quantity.min = '0.01';
-        quantity.step = '0.01';
+        quantity.min = '1';
+        quantity.step = '1';
         quantity.required = true;
         quantity.value = String(line.cantidad);
         quantity.addEventListener('input', () => { line.cantidad = Number(quantity.value) || 0; updateTotals(); });
@@ -151,8 +201,11 @@ async function loadInvoiceForEdit(id) {
     lineas = (invoice.detalles ?? []).map(detail => createLine(detail));
     renderLines();
     if (estadoActual.toUpperCase() === 'ANULADA') {
-        byId('btn-guardar').disabled = true;
-        showAlert('Esta factura está anulada y no se puede editar.');
+        const reactivationField = byId('reactivacion-field');
+        const reactivationStatus = byId('estado-reactivacion');
+        reactivationField.classList.remove('hidden');
+        reactivationStatus.required = true;
+        showAlert('La factura está anulada. Podés editarla y elegir un estado para reactivarla.');
     }
 }
 function readForm() {
@@ -172,24 +225,41 @@ function readForm() {
         puntoVentaId: Number(byId('puntoVentaId').value),
         importeCobrado: Number(byId('importeCobrado').value || 0),
         importeSaldo: 0,
-        estado: estadoActual || 'EMITIDA',
+        estado: estadoActual.toUpperCase() === 'ANULADA'
+            ? byId('estado-reactivacion').value
+            : estadoActual,
         observaciones: byId('observaciones').value.trim(),
         detalles: details
     };
 }
 byId('btn-agregar').addEventListener('click', () => { lineas.push(createLine()); renderLines(); });
+byId('btn-mostrar-cliente').addEventListener('click', () => {
+    clearAlert();
+    byId('nuevo-cliente-panel').disabled = false;
+    byId('nuevo-cliente-panel').classList.remove('hidden');
+    byId('btn-guardar').disabled = true;
+    byId('nuevo-cliente-cuit').focus();
+});
+byId('btn-cancelar-cliente').addEventListener('click', closeClientPanel);
+byId('btn-guardar-cliente').addEventListener('click', () => { void saveNewClient(); });
 byId('factura-form').addEventListener('submit', async (event) => {
     event.preventDefault();
     clearAlert();
+    if (!byId('nuevo-cliente-panel').disabled)
+        return;
     if (guardando)
         return;
     const body = readForm();
+    if (estadoActual.toUpperCase() === 'ANULADA' && !body.estado) {
+        showAlert('Elegí el nuevo estado para reactivar la factura.');
+        return;
+    }
     if (body.detalles.length === 0) {
         showAlert('Agregá al menos un producto.');
         return;
     }
-    if (body.detalles.some(detail => !detail.articuloId || !Number.isFinite(detail.cantidad) || detail.cantidad <= 0)) {
-        showAlert('Revisá los productos: todos deben tener artículo y cantidad mayor a cero.');
+    if (body.detalles.some(detail => !detail.articuloId || !Number.isInteger(detail.cantidad) || detail.cantidad < 1)) {
+        showAlert('Revisá los productos: todos deben tener artículo y una cantidad entera mayor a cero.');
         return;
     }
     if (body.detalles.some(detail => detail.porcentajeBonificacion < 0 || detail.porcentajeBonificacion > 100)) {
@@ -226,7 +296,7 @@ async function init() {
         }
         else {
             try {
-                const invoices = await getFacturas();
+                const invoices = await getAllFacturas();
                 const highestNumber = invoices.reduce((max, invoice) => Math.max(max, Number(invoice.numeroFactura) || 0), 0);
                 byId('numero').value = String(highestNumber + 1 || 1);
             }
