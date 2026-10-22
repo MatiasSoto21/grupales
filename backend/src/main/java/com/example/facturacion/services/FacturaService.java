@@ -372,7 +372,8 @@ public class FacturaService {
 
         // 1. Buscar la factura existente.
         FacturaVenta factura = facturaVentaRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException(
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.NOT_FOUND,
                         "No existe la factura con ID " + id));
 
         // 2. Validar los datos obligatorios.

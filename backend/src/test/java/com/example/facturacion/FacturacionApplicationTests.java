@@ -10,18 +10,28 @@ import com.example.facturacion.repositories.FacturaVentaRepository;
 import com.example.facturacion.repositories.ClienteRepository;
 import com.example.facturacion.services.FacturaService;
 import com.example.facturacion.services.ClienteService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.MediaType;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.http.HttpStatus;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 
 @SpringBootTest
+@AutoConfigureMockMvc
 class FacturacionApplicationTests {
 
 	@Autowired
@@ -36,8 +46,78 @@ class FacturacionApplicationTests {
 	@Autowired
 	private ClienteRepository clienteRepository;
 
+	@Autowired
+	private MockMvc mockMvc;
+
+	@Autowired
+	private ObjectMapper objectMapper;
+
 	@Test
 	void contextLoads() {
+	}
+
+	@Test
+	void updatingMissingInvoiceReturnsNotFound() throws Exception {
+		mockMvc.perform(put("/api/facturas/{id}", Long.MAX_VALUE)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{}"))
+				.andExpect(status().isNotFound());
+	}
+
+	@Test
+	void invalidInvoiceRequestReturnsBadRequest() throws Exception {
+		mockMvc.perform(post("/api/facturas")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{}"))
+				.andExpect(status().isBadRequest());
+	}
+
+	@Test
+	@Transactional
+	void invoiceCrudEndpointsReturnExpectedSuccessStatuses() throws Exception {
+		FacturaVenta existing = facturaVentaRepository.findAll().stream()
+				.filter(invoice -> !invoice.getDetalles().isEmpty())
+				.findFirst()
+				.orElseThrow();
+		FacturaRequestDTO request = new FacturaRequestDTO(
+				System.currentTimeMillis(),
+				existing.getFechaEmision(),
+				existing.getCliente() == null ? null : existing.getCliente().getId(),
+				existing.getCondicionIva().getId(),
+				existing.getTipoMoneda().getId(),
+				existing.getPuntoVenta().getId(),
+				0,
+				0,
+				"EMITIDA",
+				"Prueba de contrato REST",
+				List.of(new FacturaDetalleRequestDTO(
+						existing.getDetalles().get(0).getListaPrecioArticulo().getArticulo().getId(),
+						"Detalle de prueba",
+						1,
+						0)));
+
+		MvcResult createdResult = mockMvc.perform(post("/api/facturas")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(objectMapper.writeValueAsString(request)))
+				.andExpect(status().isCreated())
+				.andExpect(jsonPath("$.id").exists())
+				.andExpect(jsonPath("$.numeroFactura").value(request.getNumero()))
+				.andReturn();
+
+		FacturaReporteDTO created = objectMapper.readValue(
+				createdResult.getResponse().getContentAsString(),
+				FacturaReporteDTO.class);
+		String requestJson = objectMapper.writeValueAsString(request);
+
+		mockMvc.perform(put("/api/facturas/{id}", created.getId())
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(requestJson))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.id").value(created.getId()));
+
+		mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+				.delete("/api/facturas/{id}", created.getId()))
+				.andExpect(status().isNoContent());
 	}
 
 	@Test

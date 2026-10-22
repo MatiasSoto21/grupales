@@ -52,6 +52,8 @@ getFacturas('', {
 - Item quantities must be positive integers in both frontend and backend; discount percentages may be decimal.
 - Keep the dashboard summary aligned with pagination: filtered result count is global, while invoice sum is for the current page.
 - Validate date, receipt number and amount filters consistently before listing and exporting.
+- Return HTTP 400 for invalid invoice data and HTTP 404 when an invoice being updated does not exist.
+- Keep invoice creation in its dedicated form page; the listing page remains focused on search and management.
 
 ## Backend (Java)
 - **Build**: `.\mvnw.cmd clean package` 

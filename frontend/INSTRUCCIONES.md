@@ -38,6 +38,7 @@ Para desarrollar y recompilar automáticamente, ejecutá `npm run dev`.
 - `GET /api/catalogos` para clientes, condiciones de IVA, puntos de venta, monedas y artículos.
 - `POST /api/clientes` para crear un cliente desde el formulario de factura. CUIT/CUIL y denominación son obligatorios; los datos de contacto y domicilio son opcionales. El cliente creado se selecciona en la factura sin perder el borrador.
 - La cantidad de cada ítem de factura debe ser un entero mayor que cero; las bonificaciones pueden expresarse con decimales.
+- La API responde `400 Bad Request` ante datos de factura inválidos y `404 Not Found` cuando se actualiza una factura inexistente. La creación y edición se realizan desde el formulario independiente.
 - `GET /api/facturas/pdf` y `GET /api/facturas/excel` para exportar informes.
 
 Los controles de paginación se muestran debajo del listado. Las exportaciones incluyen todos los resultados que coinciden con los filtros, independientemente de la página seleccionada.

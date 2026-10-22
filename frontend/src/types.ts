@@ -1,6 +1,6 @@
-export interface FacturaResumen {
+export interface FacturaReporteDTO {
   id: number;
-  numeroFactura: number;
+  numeroFactura: number | null;
   fechaEmision: string;
   clienteDenominacion: string;
   condicionIva: string;
@@ -9,6 +9,8 @@ export interface FacturaResumen {
   cantidadItems: number;
   estado: string;
 }
+
+export type FacturaResumen = FacturaReporteDTO;
 
 export interface GetFacturasOptions {
   fechaDesde?: string;
@@ -68,12 +70,14 @@ export interface Catalogos {
   articulos: ArticuloCatalogo[];
 }
 
-export interface DetalleRequest {
+export interface FacturaDetalleRequestDTO {
   articuloId: number;
   descripcion: string;
   cantidad: number;
   porcentajeBonificacion: number;
 }
+
+export type DetalleRequest = FacturaDetalleRequestDTO;
 
 export interface DetalleFactura {
   id?: number;
@@ -83,7 +87,7 @@ export interface DetalleFactura {
   porcentajeBonificacion: number;
 }
 
-export interface FacturaRequest {
+export interface FacturaRequestDTO {
   numero: number | null;
   fechaEmision: string;
   clienteId: number | null;
@@ -96,3 +100,5 @@ export interface FacturaRequest {
   observaciones: string;
   detalles: DetalleRequest[];
 }
+
+export type FacturaRequest = FacturaRequestDTO;
