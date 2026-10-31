@@ -4,6 +4,7 @@ const API_URL = 'http://localhost:8080/api/facturas';
 const params = new URLSearchParams(window.location.search);
 const idParam = params.get('id');
 const idEdicion = idParam && Number.isInteger(Number(idParam)) ? Number(idParam) : undefined;
+const modalMode = params.has('modal');
 let catalogos = null;
 let lineas = [];
 let estadoActual = 'EMITIDA';
@@ -40,11 +41,16 @@ async function loadCatalogs() {
     for (const money of catalogos.tiposMoneda ?? []) {
         currencySelect.append(makeOption(money.id, `${money.simbolo ?? ''} ${money.denominacion}`.trim()));
     }
+    const productSelect = byId('producto-articulo');
+    productSelect.replaceChildren(makeOption('', 'Seleccioná un artículo'));
+    for (const article of catalogos.articulos ?? []) {
+        productSelect.append(makeOption(article.id, `${article.codigo ? `${article.codigo} · ` : ''}${article.denominacion}`));
+    }
 }
 function closeClientPanel() {
     const panel = byId('nuevo-cliente-panel');
-    panel.disabled = true;
-    panel.classList.add('hidden');
+    if (panel.open)
+        panel.close();
     byId('btn-guardar').disabled = false;
     panel.querySelectorAll('input').forEach(input => { input.value = ''; });
 }
@@ -232,20 +238,70 @@ function readForm() {
         detalles: details
     };
 }
-byId('btn-agregar').addEventListener('click', () => { lineas.push(createLine()); renderLines(); });
+function closeProductModal() {
+    const modal = byId('producto-modal');
+    if (modal.open)
+        modal.close();
+}
+function updateProductPreview() {
+    const productId = byId('producto-articulo').value;
+    const quantity = Number(byId('producto-cantidad').value || 0);
+    const discount = Number(byId('producto-bonificacion').value || 0);
+    const price = Number(articleById(productId)?.precioVenta ?? 0);
+    byId('producto-subtotal').textContent = currency(price * quantity * (1 - discount / 100));
+}
+byId('btn-agregar').addEventListener('click', () => {
+    byId('producto-articulo').value = '';
+    byId('producto-cantidad').value = '1';
+    byId('producto-bonificacion').value = '0';
+    updateProductPreview();
+    byId('producto-modal').showModal();
+    byId('producto-articulo').focus();
+});
+byId('btn-cerrar-producto').addEventListener('click', closeProductModal);
+byId('btn-cancelar-producto').addEventListener('click', closeProductModal);
+for (const id of ['producto-articulo', 'producto-cantidad', 'producto-bonificacion']) {
+    byId(id).addEventListener('input', updateProductPreview);
+}
+byId('producto-form').addEventListener('submit', event => {
+    event.preventDefault();
+    const productId = byId('producto-articulo').value;
+    const quantity = Number(byId('producto-cantidad').value);
+    const discount = Number(byId('producto-bonificacion').value || 0);
+    if (!productId || !Number.isInteger(quantity) || quantity < 1) {
+        showAlert('Seleccioná un artículo y una cantidad entera mayor a cero.');
+        return;
+    }
+    if (!Number.isFinite(discount) || discount < 0 || discount > 100) {
+        showAlert('La bonificación debe estar entre 0 y 100%.');
+        return;
+    }
+    lineas.push({
+        articuloId: Number(productId),
+        descripcion: articleById(productId)?.denominacion ?? '',
+        cantidad: quantity,
+        porcentajeBonificacion: discount
+    });
+    renderLines();
+    closeProductModal();
+});
 byId('btn-mostrar-cliente').addEventListener('click', () => {
     clearAlert();
-    byId('nuevo-cliente-panel').disabled = false;
-    byId('nuevo-cliente-panel').classList.remove('hidden');
+    const panel = byId('nuevo-cliente-panel');
+    panel.showModal();
     byId('btn-guardar').disabled = true;
     byId('nuevo-cliente-cuit').focus();
 });
+byId('btn-cerrar-cliente-x').addEventListener('click', closeClientPanel);
 byId('btn-cancelar-cliente').addEventListener('click', closeClientPanel);
 byId('btn-guardar-cliente').addEventListener('click', () => { void saveNewClient(); });
+byId('nuevo-cliente-panel').addEventListener('close', () => {
+    byId('btn-guardar').disabled = false;
+});
 byId('factura-form').addEventListener('submit', async (event) => {
     event.preventDefault();
     clearAlert();
-    if (!byId('nuevo-cliente-panel').disabled)
+    if (byId('nuevo-cliente-panel').open)
         return;
     if (guardando)
         return;
@@ -277,7 +333,14 @@ byId('factura-form').addEventListener('submit', async (event) => {
     try {
         await guardarFactura(body, idEdicion);
         showAlert(idEdicion ? 'Factura actualizada correctamente.' : 'Factura creada correctamente.', 'success');
-        window.setTimeout(() => { window.location.href = '/'; }, 900);
+        window.setTimeout(() => {
+            if (modalMode && window.parent !== window) {
+                window.parent.postMessage({ type: 'factura-modal-close', reload: true }, '*');
+            }
+            else {
+                window.location.href = '/';
+            }
+        }, 900);
     }
     catch (error) {
         showAlert(`No se pudo guardar la factura: ${error instanceof Error ? error.message : String(error)}`);
@@ -287,6 +350,19 @@ byId('factura-form').addEventListener('submit', async (event) => {
     }
 });
 async function init() {
+    if (modalMode) {
+        document.body.classList.add('modal-mode');
+        const cancelButton = byId('btn-cancelar-factura');
+        cancelButton.addEventListener('click', () => {
+            if (window.parent !== window)
+                window.parent.postMessage({ type: 'factura-modal-close', reload: false }, '*');
+            else
+                window.location.href = '/';
+        });
+    }
+    else {
+        byId('btn-cancelar-factura').addEventListener('click', () => { window.location.href = '/'; });
+    }
     try {
         const today = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
         byId('fechaEmision').value = today;
@@ -301,7 +377,7 @@ async function init() {
                 byId('numero').value = String(highestNumber + 1 || 1);
             }
             catch { /* El número se puede ingresar manualmente si falla la consulta. */ }
-            lineas = [createLine()];
+            lineas = [];
             renderLines();
         }
     }

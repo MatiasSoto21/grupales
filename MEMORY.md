@@ -3,11 +3,13 @@
 Memoria del proyecto entre sesiones. Maximo 50 lineas: resume o elimina lo que ya no aporte.
 
 ## Estado actual
-- v2 implementada: CRUD/reactivación de facturas, alta de cliente desde factura, filtros combinables, paginación y validación de cantidades enteras.
+- v2 implementada: CRUD/reactivación de facturas, alta de cliente desde factura, filtros combinables, paginación, modales de factura/cliente/producto y validación de cantidades enteras.
+- Las nuevas facturas inician sin líneas de producto precargadas.
 
 ## Decisiones y por que
 - Mantener el proyecto con Java 21 respetando el AGENTS.md.
-- Mantener la creación/edición en una pantalla de formulario separada del listado; la consigna del TP es una guía funcional, no obliga a concentrar todo en `index.html`.
+- Mantener el formulario en `factura-form.html`, pero abrirlo como modal desde el listado sin abandonar la página principal.
+- Usar modales para crear clientes y agregar productos, además de confirmaciones modales para anular/reactivar.
 - Para la API REST, los datos inválidos de factura responden 400 y las operaciones sobre facturas inexistentes responden 404.
 - Los filtros de cliente y comprobante usan query parameters REST; `sinCliente=true` cubre la relación opcional nula.
 - Listado paginado y exportaciones consumen los mismos filtros; las exportaciones no se limitan a la página actual.

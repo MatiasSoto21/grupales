@@ -7,7 +7,7 @@
 <body>
 <header class="topbar"><div class="topbar-inner">
   <a class="brand" href="/"><span class="brand-mark">▤</span><span>Facturación<small>Gestión de ventas</small></span></a>
-  <div class="top-actions"><a class="btn btn-secondary" href="/api/facturas/pdf" target="_blank">Descargar PDF ↗</a><a class="btn btn-secondary" href="/api/facturas/excel">Exportar Excel ↓</a><a class="btn btn-primary" href="/factura-form.html">＋ Nueva factura</a></div>
+  <div class="top-actions"><a class="btn btn-secondary" href="/api/facturas/pdf">Descargar PDF ↗</a><a class="btn btn-secondary" href="/api/facturas/excel">Exportar Excel ↓</a><button type="button" class="btn btn-primary" id="btn-nueva-factura">＋ Nueva factura</button></div>
 </div></header>
 <main class="container">
   <div class="page-head"><div><p class="eyebrow">Panel de control</p><h1>Facturas de venta</h1><p class="subtitle">Consultá, filtrá y administrá las facturas de tu sistema.</p></div><div id="api-status" class="muted">Conectando con el backend…</div></div>
@@ -37,5 +37,14 @@
   </section>
   <p class="footnote">La opción “Anular” realiza una baja lógica: conserva la factura y registra su fecha de anulación en el sistema.</p>
 </main>
+<dialog id="factura-modal" class="modal factura-modal" aria-labelledby="factura-modal-title">
+  <div class="modal-header"><div><p class="eyebrow">Gestión de facturas</p><h2 id="factura-modal-title">Factura</h2></div><button type="button" id="btn-cerrar-factura-modal" class="modal-close" aria-label="Cerrar ventana">×</button></div>
+  <iframe id="factura-modal-frame" title="Formulario de factura"></iframe>
+</dialog>
+<dialog id="confirm-modal" class="modal confirm-modal" aria-labelledby="confirm-modal-title">
+  <div class="modal-header"><h2 id="confirm-modal-title">Confirmar acción</h2></div>
+  <p id="confirm-modal-message" class="confirm-message"></p>
+  <div class="modal-actions"><button type="button" id="confirm-modal-cancel" class="btn btn-secondary">Cancelar</button><button type="button" id="confirm-modal-ok" class="btn btn-danger">Confirmar</button></div>
+</dialog>
 <script type="module" src="/dist/facturas.js"></script>
 </body></html>

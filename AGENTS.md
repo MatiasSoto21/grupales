@@ -53,7 +53,14 @@ getFacturas('', {
 - Keep the dashboard summary aligned with pagination: filtered result count is global, while invoice sum is for the current page.
 - Validate date, receipt number and amount filters consistently before listing and exporting.
 - Return HTTP 400 for invalid invoice data and HTTP 404 when an invoice being updated does not exist.
-- Keep invoice creation in its dedicated form page; the listing page remains focused on search and management.
+- Creation and editing of invoices run in a modal opened from the listing, using the existing `factura-form.html` as modal content.
+- Creating a client and adding an invoice item use nested modals; a new invoice starts with no preloaded items.
+
+## Modal interaction conventions
+- Use native `<dialog>` elements for forms and confirmations.
+- Keep the invoice list visible underneath the invoice modal and reload it after a successful save.
+- Preserve invoice draft state when the client modal is closed or a new client is selected.
+- Product entries are created through the product modal; validate article, positive integer quantity and discount before adding the line.
 
 ## Backend (Java)
 - **Build**: `.\mvnw.cmd clean package`

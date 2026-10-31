@@ -75,6 +75,39 @@ async function loadClientFilter() {
     }
     clientSelect.append(makeOption('SIN_CLIENTE', 'Consumidor final (sin cliente)'));
 }
+function openInvoiceModal(id) {
+    const modal = byId('factura-modal');
+    const frame = byId('factura-modal-frame');
+    frame.src = id ? `/factura-form.html?modal=1&id=${encodeURIComponent(id)}` : '/factura-form.html?modal=1';
+    modal.showModal();
+}
+function closeInvoiceModal(reload = false) {
+    const modal = byId('factura-modal');
+    modal.close();
+    byId('factura-modal-frame').src = 'about:blank';
+    if (reload)
+        void loadInvoices();
+}
+function confirmAction(message, confirmLabel = 'Confirmar') {
+    const modal = byId('confirm-modal');
+    byId('confirm-modal-message').textContent = message;
+    const ok = byId('confirm-modal-ok');
+    ok.textContent = confirmLabel;
+    return new Promise(resolve => {
+        const finish = (value) => {
+            ok.removeEventListener('click', onOk);
+            cancel.removeEventListener('click', onCancel);
+            modal.close();
+            resolve(value);
+        };
+        const cancel = byId('confirm-modal-cancel');
+        const onOk = () => finish(true);
+        const onCancel = () => finish(false);
+        ok.addEventListener('click', onOk);
+        cancel.addEventListener('click', onCancel);
+        modal.showModal();
+    });
+}
 function statusPill(status) {
     const value = String(status || 'SIN ESTADO').toUpperCase();
     let className = 'pill';
@@ -108,7 +141,7 @@ function renderInvoices(pageResponse) {
             const edit = document.createElement('button');
             edit.className = 'btn btn-secondary btn-small';
             edit.textContent = 'Editar';
-            edit.addEventListener('click', () => { window.location.href = `/factura-form.html?id=${encodeURIComponent(invoice.id)}`; });
+            edit.addEventListener('click', () => { openInvoiceModal(Number(invoice.id)); });
             actions.append(edit);
             if (isCancelled) {
                 const reactivate = document.createElement('button');
@@ -206,7 +239,7 @@ async function loadInvoices(preserveScrollPosition = false) {
     }
 }
 async function cancelInvoice(invoice) {
-    if (!window.confirm(`¿Anular la factura N.º ${invoice.numeroFactura}? Esta acción es lógica y no elimina el registro.`))
+    if (!await confirmAction(`¿Anular la factura N.º ${invoice.numeroFactura}? Esta acción es lógica y no elimina el registro.`, 'Anular'))
         return;
     try {
         await anularFactura(invoice.id);
@@ -219,7 +252,7 @@ async function cancelInvoice(invoice) {
     }
 }
 async function reactivateInvoice(invoice) {
-    if (!window.confirm(`¿Reactivar la factura N.º ${invoice.numeroFactura}? Su estado volverá a EMITIDA.`))
+    if (!await confirmAction(`¿Reactivar la factura N.º ${invoice.numeroFactura}? Su estado volverá a EMITIDA.`, 'Reactivar'))
         return;
     try {
         await reactivarFactura(invoice.id);
@@ -242,6 +275,18 @@ byId('btn-limpiar').addEventListener('click', () => {
     form.reset();
     currentPage = 0;
     void loadInvoices();
+});
+byId('btn-nueva-factura').addEventListener('click', () => openInvoiceModal());
+byId('btn-cerrar-factura-modal').addEventListener('click', () => closeInvoiceModal());
+byId('factura-modal').addEventListener('click', event => {
+    if (event.target === event.currentTarget)
+        closeInvoiceModal();
+});
+window.addEventListener('message', event => {
+    if (event.source !== byId('factura-modal-frame').contentWindow)
+        return;
+    if (event.data?.type === 'factura-modal-close')
+        closeInvoiceModal(Boolean(event.data.reload));
 });
 for (const [selector, path] of [['a[href="/api/facturas/pdf"]', '/pdf'], ['a[href="/api/facturas/excel"]', '/excel']]) {
     const link = document.querySelector(selector);

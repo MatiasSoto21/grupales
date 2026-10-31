@@ -11,8 +11,8 @@
       <div class="field"><label for="fechaEmision">Fecha de emisión <span class="required">*</span></label><input type="date" id="fechaEmision" required></div>
       <div class="field"><label for="puntoVentaId">Punto de venta <span class="required">*</span></label><select id="puntoVentaId" required><option value="">Cargando…</option></select></div>
       <div class="field"><label for="clienteId">Cliente</label><div class="client-select-actions"><select id="clienteId"><option value="">Consumidor final</option></select><button type="button" id="btn-mostrar-cliente" class="btn btn-secondary">＋ Añadir</button></div><div class="hint">Dejá “Consumidor final” si no corresponde seleccionar un cliente.</div></div>
-      <fieldset id="nuevo-cliente-panel" class="client-create-panel span-3 hidden" disabled>
-        <legend>Nuevo cliente</legend>
+      <dialog id="nuevo-cliente-panel" class="client-create-modal">
+        <div class="modal-header"><div><p class="eyebrow">Cliente</p><h2>Nuevo cliente</h2></div><button type="button" id="btn-cerrar-cliente-x" class="modal-close" aria-label="Cerrar ventana">×</button></div>
         <div class="client-create-grid">
           <div class="field"><label for="nuevo-cliente-cuit">CUIT/CUIL <span class="required">*</span></label><input type="text" id="nuevo-cliente-cuit" maxlength="20" autocomplete="off"></div>
           <div class="field"><label for="nuevo-cliente-denominacion">Denominación <span class="required">*</span></label><input type="text" id="nuevo-cliente-denominacion" maxlength="200" autocomplete="organization"></div>
@@ -23,7 +23,7 @@
           <div class="field"><label for="nuevo-cliente-numero-calle">Número de calle</label><input type="text" id="nuevo-cliente-numero-calle" maxlength="20"></div>
           <div class="client-create-actions"><button type="button" id="btn-guardar-cliente" class="btn btn-primary">Guardar cliente</button><button type="button" id="btn-cancelar-cliente" class="btn btn-secondary">Cancelar</button></div>
         </div>
-      </fieldset>
+      </dialog>
       <div class="field"><label for="condicionIvaId">Condición IVA <span class="required">*</span></label><select id="condicionIvaId" required><option value="">Cargando…</option></select></div>
       <div class="field"><label for="tipoMonedaId">Moneda <span class="required">*</span></label><select id="tipoMonedaId" required><option value="">Cargando…</option></select></div>
       <div class="field"><label for="importeCobrado">Importe cobrado</label><input type="number" id="importeCobrado" min="0" step="0.01" value="0"></div>
@@ -31,6 +31,19 @@
       <div class="field span-2"><label for="observaciones">Observaciones</label><input type="text" id="observaciones" maxlength="500" placeholder="Notas adicionales (opcional)"></div>
     </div></div></section>
     <section class="card"><div class="card-head"><div><h2>Productos / ítems</h2><span class="muted" style="font-size:.78rem">La cantidad debe ser entera; la bonificación admite decimales.</span></div><button type="button" class="btn btn-success btn-small" id="btn-agregar">＋ Agregar producto</button></div><div class="table-wrap"><table class="table line-table"><thead><tr><th>Artículo</th><th>Cantidad</th><th>Bonificación %</th><th class="text-right">Precio unitario</th><th class="text-right">Subtotal estimado</th><th></th></tr></thead><tbody id="detalles-tbody"></tbody></table></div><div class="card-body"><div class="total-panel"><div class="total-row"><span>Subtotal neto estimado</span><strong id="neto-estimado">$ 0,00</strong></div><div class="total-row"><span>IVA estimado (21%)</span><strong id="iva-estimado">$ 0,00</strong></div><div class="total-row final"><span>Total estimado</span><strong id="total-estimado">$ 0,00</strong></div><div class="hint">El total definitivo lo calcula el backend con el precio de lista y las reglas de facturación.</div></div></div></section>
-    <div class="form-actions"><a class="btn btn-secondary" href="/">Cancelar</a><div class="form-actions-right"><button type="submit" id="btn-guardar" class="btn btn-primary">Guardar factura</button></div></div>
+    <div class="form-actions"><button type="button" class="btn btn-secondary" id="btn-cancelar-factura">Cancelar</button><div class="form-actions-right"><button type="submit" id="btn-guardar" class="btn btn-primary">Guardar factura</button></div></div>
   </form>
-</main><script type="module" src="/dist/factura-form.js"></script></body></html>
+</main>
+<dialog id="producto-modal" class="product-modal" aria-labelledby="producto-modal-title">
+  <div class="modal-header"><div><p class="eyebrow">Productos</p><h2 id="producto-modal-title">Agregar producto</h2></div><button type="button" id="btn-cerrar-producto" class="modal-close" aria-label="Cerrar ventana">×</button></div>
+  <form id="producto-form" class="product-modal-body">
+    <div class="field"><label for="producto-articulo">Artículo <span class="required">*</span></label><select id="producto-articulo" required><option value="">Seleccioná un artículo</option></select></div>
+    <div class="product-modal-grid">
+      <div class="field"><label for="producto-cantidad">Cantidad <span class="required">*</span></label><input type="number" id="producto-cantidad" min="1" step="1" value="1" required></div>
+      <div class="field"><label for="producto-bonificacion">Bonificación %</label><input type="number" id="producto-bonificacion" min="0" max="100" step="0.01" value="0"></div>
+    </div>
+    <div class="product-preview"><span>Subtotal estimado</span><strong id="producto-subtotal">$ 0,00</strong></div>
+    <div class="modal-actions"><button type="button" id="btn-cancelar-producto" class="btn btn-secondary">Cancelar</button><button type="submit" class="btn btn-success">Agregar a la factura</button></div>
+  </form>
+</dialog>
+<script type="module" src="/dist/factura-form.js"></script></body></html>

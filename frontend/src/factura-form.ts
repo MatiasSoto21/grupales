@@ -6,6 +6,7 @@ const API_URL = 'http://localhost:8080/api/facturas';
 const params = new URLSearchParams(window.location.search);
 const idParam = params.get('id');
 const idEdicion = idParam && Number.isInteger(Number(idParam)) ? Number(idParam) : undefined;
+const modalMode = params.has('modal');
 let catalogos: Catalogos | null = null;
 let lineas: DetalleFactura[] = [];
 let estadoActual = 'EMITIDA';
@@ -46,12 +47,17 @@ async function loadCatalogs(): Promise<void> {
   for (const money of catalogos.tiposMoneda ?? []) {
     currencySelect.append(makeOption(money.id, `${money.simbolo ?? ''} ${money.denominacion}`.trim()));
   }
+
+  const productSelect = byId<HTMLSelectElement>('producto-articulo');
+  productSelect.replaceChildren(makeOption('', 'Seleccioná un artículo'));
+  for (const article of catalogos.articulos ?? []) {
+    productSelect.append(makeOption(article.id, `${article.codigo ? `${article.codigo} · ` : ''}${article.denominacion}`));
+  }
 }
 
 function closeClientPanel(): void {
-  const panel = byId<HTMLFieldSetElement>('nuevo-cliente-panel');
-  panel.disabled = true;
-  panel.classList.add('hidden');
+  const panel = byId<HTMLDialogElement>('nuevo-cliente-panel');
+  if (panel.open) panel.close();
   byId<HTMLButtonElement>('btn-guardar').disabled = false;
   panel.querySelectorAll<HTMLInputElement>('input').forEach(input => { input.value = ''; });
 }
@@ -240,20 +246,71 @@ function readForm(): FacturaRequest {
   };
 }
 
-byId<HTMLButtonElement>('btn-agregar').addEventListener('click', () => { lineas.push(createLine()); renderLines(); });
+function closeProductModal(): void {
+  const modal = byId<HTMLDialogElement>('producto-modal');
+  if (modal.open) modal.close();
+}
+
+function updateProductPreview(): void {
+  const productId = byId<HTMLSelectElement>('producto-articulo').value;
+  const quantity = Number(byId<HTMLInputElement>('producto-cantidad').value || 0);
+  const discount = Number(byId<HTMLInputElement>('producto-bonificacion').value || 0);
+  const price = Number(articleById(productId)?.precioVenta ?? 0);
+  byId<HTMLElement>('producto-subtotal').textContent = currency(price * quantity * (1 - discount / 100));
+}
+
+byId<HTMLButtonElement>('btn-agregar').addEventListener('click', () => {
+  byId<HTMLSelectElement>('producto-articulo').value = '';
+  byId<HTMLInputElement>('producto-cantidad').value = '1';
+  byId<HTMLInputElement>('producto-bonificacion').value = '0';
+  updateProductPreview();
+  byId<HTMLDialogElement>('producto-modal').showModal();
+  byId<HTMLSelectElement>('producto-articulo').focus();
+});
+byId<HTMLButtonElement>('btn-cerrar-producto').addEventListener('click', closeProductModal);
+byId<HTMLButtonElement>('btn-cancelar-producto').addEventListener('click', closeProductModal);
+for (const id of ['producto-articulo', 'producto-cantidad', 'producto-bonificacion']) {
+  byId<HTMLInputElement | HTMLSelectElement>(id).addEventListener('input', updateProductPreview);
+}
+byId<HTMLFormElement>('producto-form').addEventListener('submit', event => {
+  event.preventDefault();
+  const productId = byId<HTMLSelectElement>('producto-articulo').value;
+  const quantity = Number(byId<HTMLInputElement>('producto-cantidad').value);
+  const discount = Number(byId<HTMLInputElement>('producto-bonificacion').value || 0);
+  if (!productId || !Number.isInteger(quantity) || quantity < 1) {
+    showAlert('Seleccioná un artículo y una cantidad entera mayor a cero.');
+    return;
+  }
+  if (!Number.isFinite(discount) || discount < 0 || discount > 100) {
+    showAlert('La bonificación debe estar entre 0 y 100%.');
+    return;
+  }
+  lineas.push({
+    articuloId: Number(productId),
+    descripcion: articleById(productId)?.denominacion ?? '',
+    cantidad: quantity,
+    porcentajeBonificacion: discount
+  });
+  renderLines();
+  closeProductModal();
+});
 byId<HTMLButtonElement>('btn-mostrar-cliente').addEventListener('click', () => {
   clearAlert();
-  byId<HTMLFieldSetElement>('nuevo-cliente-panel').disabled = false;
-  byId<HTMLFieldSetElement>('nuevo-cliente-panel').classList.remove('hidden');
+  const panel = byId<HTMLDialogElement>('nuevo-cliente-panel');
+  panel.showModal();
   byId<HTMLButtonElement>('btn-guardar').disabled = true;
   byId<HTMLInputElement>('nuevo-cliente-cuit').focus();
 });
+byId<HTMLButtonElement>('btn-cerrar-cliente-x').addEventListener('click', closeClientPanel);
 byId<HTMLButtonElement>('btn-cancelar-cliente').addEventListener('click', closeClientPanel);
 byId<HTMLButtonElement>('btn-guardar-cliente').addEventListener('click', () => { void saveNewClient(); });
+byId<HTMLDialogElement>('nuevo-cliente-panel').addEventListener('close', () => {
+  byId<HTMLButtonElement>('btn-guardar').disabled = false;
+});
 byId<HTMLFormElement>('factura-form').addEventListener('submit', async event => {
   event.preventDefault();
   clearAlert();
-  if (!byId<HTMLFieldSetElement>('nuevo-cliente-panel').disabled) return;
+  if (byId<HTMLDialogElement>('nuevo-cliente-panel').open) return;
   if (guardando) return;
   const body = readForm();
   if (estadoActual.toUpperCase() === 'ANULADA' && !body.estado) {
@@ -276,7 +333,13 @@ byId<HTMLFormElement>('factura-form').addEventListener('submit', async event => 
   try {
     await guardarFactura(body, idEdicion);
     showAlert(idEdicion ? 'Factura actualizada correctamente.' : 'Factura creada correctamente.', 'success');
-    window.setTimeout(() => { window.location.href = '/'; }, 900);
+    window.setTimeout(() => {
+      if (modalMode && window.parent !== window) {
+        window.parent.postMessage({ type: 'factura-modal-close', reload: true }, '*');
+      } else {
+        window.location.href = '/';
+      }
+    }, 900);
   } catch (error: unknown) {
     showAlert(`No se pudo guardar la factura: ${error instanceof Error ? error.message : String(error)}`);
     guardando = false;
@@ -286,6 +349,16 @@ byId<HTMLFormElement>('factura-form').addEventListener('submit', async event => 
 });
 
 async function init(): Promise<void> {
+  if (modalMode) {
+    document.body.classList.add('modal-mode');
+    const cancelButton = byId<HTMLButtonElement>('btn-cancelar-factura');
+    cancelButton.addEventListener('click', () => {
+      if (window.parent !== window) window.parent.postMessage({ type: 'factura-modal-close', reload: false }, '*');
+      else window.location.href = '/';
+    });
+  } else {
+    byId<HTMLButtonElement>('btn-cancelar-factura').addEventListener('click', () => { window.location.href = '/'; });
+  }
   try {
     const today = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
     byId<HTMLInputElement>('fechaEmision').value = today;
@@ -298,7 +371,7 @@ async function init(): Promise<void> {
         const highestNumber = invoices.reduce((max, invoice) => Math.max(max, Number(invoice.numeroFactura) || 0), 0);
         byId<HTMLInputElement>('numero').value = String(highestNumber + 1 || 1);
       } catch { /* El número se puede ingresar manualmente si falla la consulta. */ }
-      lineas = [createLine()];
+      lineas = [];
       renderLines();
     }
   } catch (error: unknown) {

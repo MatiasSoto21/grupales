@@ -82,6 +82,41 @@ async function loadClientFilter(): Promise<void> {
   clientSelect.append(makeOption('SIN_CLIENTE', 'Consumidor final (sin cliente)'));
 }
 
+function openInvoiceModal(id?: number): void {
+  const modal = byId<HTMLDialogElement>('factura-modal');
+  const frame = byId<HTMLIFrameElement>('factura-modal-frame');
+  frame.src = id ? `/factura-form.html?modal=1&id=${encodeURIComponent(id)}` : '/factura-form.html?modal=1';
+  modal.showModal();
+}
+
+function closeInvoiceModal(reload = false): void {
+  const modal = byId<HTMLDialogElement>('factura-modal');
+  modal.close();
+  byId<HTMLIFrameElement>('factura-modal-frame').src = 'about:blank';
+  if (reload) void loadInvoices();
+}
+
+function confirmAction(message: string, confirmLabel = 'Confirmar'): Promise<boolean> {
+  const modal = byId<HTMLDialogElement>('confirm-modal');
+  byId<HTMLElement>('confirm-modal-message').textContent = message;
+  const ok = byId<HTMLButtonElement>('confirm-modal-ok');
+  ok.textContent = confirmLabel;
+  return new Promise(resolve => {
+    const finish = (value: boolean): void => {
+      ok.removeEventListener('click', onOk);
+      cancel.removeEventListener('click', onCancel);
+      modal.close();
+      resolve(value);
+    };
+    const cancel = byId<HTMLButtonElement>('confirm-modal-cancel');
+    const onOk = (): void => finish(true);
+    const onCancel = (): void => finish(false);
+    ok.addEventListener('click', onOk);
+    cancel.addEventListener('click', onCancel);
+    modal.showModal();
+  });
+}
+
 function statusPill(status: string | null | undefined): string {
   const value = String(status || 'SIN ESTADO').toUpperCase();
   let className = 'pill';
@@ -116,7 +151,7 @@ function renderInvoices(pageResponse: PageResponse<FacturaResumen>): void {
       const edit = document.createElement('button');
       edit.className = 'btn btn-secondary btn-small';
       edit.textContent = 'Editar';
-      edit.addEventListener('click', () => { window.location.href = `/factura-form.html?id=${encodeURIComponent(invoice.id)}`; });
+      edit.addEventListener('click', () => { openInvoiceModal(Number(invoice.id)); });
       actions.append(edit);
 
       if (isCancelled) {
@@ -228,7 +263,7 @@ async function loadInvoices(preserveScrollPosition = false): Promise<void> {
 }
 
 async function cancelInvoice(invoice: FacturaResumen): Promise<void> {
-  if (!window.confirm(`¿Anular la factura N.º ${invoice.numeroFactura}? Esta acción es lógica y no elimina el registro.`)) return;
+  if (!await confirmAction(`¿Anular la factura N.º ${invoice.numeroFactura}? Esta acción es lógica y no elimina el registro.`, 'Anular')) return;
   try {
     await anularFactura(invoice.id);
     showAlert(`Factura ${invoice.numeroFactura} anulada correctamente.`, 'success');
@@ -240,7 +275,7 @@ async function cancelInvoice(invoice: FacturaResumen): Promise<void> {
 }
 
 async function reactivateInvoice(invoice: FacturaResumen): Promise<void> {
-  if (!window.confirm(`¿Reactivar la factura N.º ${invoice.numeroFactura}? Su estado volverá a EMITIDA.`)) return;
+  if (!await confirmAction(`¿Reactivar la factura N.º ${invoice.numeroFactura}? Su estado volverá a EMITIDA.`, 'Reactivar')) return;
   try {
     await reactivarFactura(invoice.id);
     showAlert(`Factura ${invoice.numeroFactura} reactivada correctamente.`, 'success');
@@ -261,6 +296,15 @@ byId<HTMLButtonElement>('btn-limpiar').addEventListener('click', () => {
   form.reset();
   currentPage = 0;
   void loadInvoices();
+});
+byId<HTMLButtonElement>('btn-nueva-factura').addEventListener('click', () => openInvoiceModal());
+byId<HTMLButtonElement>('btn-cerrar-factura-modal').addEventListener('click', () => closeInvoiceModal());
+byId<HTMLDialogElement>('factura-modal').addEventListener('click', event => {
+  if (event.target === event.currentTarget) closeInvoiceModal();
+});
+window.addEventListener('message', event => {
+  if (event.source !== byId<HTMLIFrameElement>('factura-modal-frame').contentWindow) return;
+  if (event.data?.type === 'factura-modal-close') closeInvoiceModal(Boolean(event.data.reload));
 });
 
 for (const [selector, path] of [['a[href="/api/facturas/pdf"]', '/pdf'], ['a[href="/api/facturas/excel"]', '/excel']] as const) {
