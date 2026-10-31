@@ -671,7 +671,7 @@ public class DataInitializer implements CommandLineRunner {
         f.setImporteTotal(total);
 
         if ("ANULADA".equals(estado)) {
-            f.setImporteCobrado(0);
+            f.setImporteCobrado(total);
             f.setImporteSaldo(0);
             f.setFechaAnulacion(fecha.plusDays(1));
             f.setObservaciones("Factura anulada de prueba");

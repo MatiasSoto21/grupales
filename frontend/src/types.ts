@@ -88,14 +88,12 @@ export interface DetalleFactura {
 }
 
 export interface FacturaRequestDTO {
-  numero: number | null;
-  fechaEmision: string;
+  numero?: number | null;
+  fechaEmision?: string;
   clienteId: number | null;
   condicionIvaId: number;
   tipoMonedaId: number;
   puntoVentaId: number;
-  importeCobrado: number;
-  importeSaldo: number;
   estado: string;
   observaciones: string;
   detalles: DetalleRequest[];

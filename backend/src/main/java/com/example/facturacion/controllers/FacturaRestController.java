@@ -30,6 +30,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import java.io.IOException;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -48,6 +49,11 @@ public class FacturaRestController {
     private final FacturaService facturaService;
     private final ReporteService reporteService;
     private final FacturaVentaRepository facturaVentaRepository;
+
+    @GetMapping("/siguiente-numero")
+    public Map<String, Long> siguienteNumero() {
+        return Map.of("numero", facturaService.obtenerSiguienteNumero());
+    }
 
     @GetMapping
     public PageResponseDTO<FacturaReporteDTO> listar(
@@ -162,8 +168,6 @@ public class FacturaRestController {
                 factura.getCondicionIva().getId(),
                 factura.getTipoMoneda().getId(),
                 factura.getPuntoVenta().getId(),
-                factura.getImporteCobrado(),
-                factura.getImporteSaldo(),
                 factura.getEstado(),
                 factura.getObservaciones(),
                 detalles);

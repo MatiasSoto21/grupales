@@ -22,8 +22,6 @@ public class FacturaRequestDTO {
     private Long tipoMonedaId;
     private Long puntoVentaId;
 
-    private double importeCobrado;
-    private double importeSaldo;
 
     private String estado;
     private String observaciones;

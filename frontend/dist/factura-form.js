@@ -1,4 +1,4 @@
-import { crearCliente, getAllFacturas, getCatalogos, getFactura, guardarFactura } from './api.js';
+import { crearCliente, getCatalogos, getFactura, getSiguienteNumeroFactura, guardarFactura } from './api.js';
 import { byId, clearAlert, currency, makeOption, showAlert } from './dom.js';
 const API_URL = 'http://localhost:8080/api/facturas';
 const params = new URLSearchParams(window.location.search);
@@ -28,21 +28,21 @@ async function loadCatalogs() {
     for (const client of catalogos.clientes ?? [])
         clientSelect.append(makeOption(client.id, client.denominacion));
     const taxSelect = byId('condicionIvaId');
-    taxSelect.replaceChildren(makeOption('', 'Seleccioná una condición'));
+    taxSelect.replaceChildren(makeOption('', 'Seleccionar'));
     for (const tax of catalogos.condicionesIva ?? [])
         taxSelect.append(makeOption(tax.id, tax.denominacion));
     const pointSelect = byId('puntoVentaId');
-    pointSelect.replaceChildren(makeOption('', 'Seleccioná un punto de venta'));
+    pointSelect.replaceChildren(makeOption('', 'Seleccionar'));
     for (const point of catalogos.puntosVenta ?? []) {
         pointSelect.append(makeOption(point.id, `${point.numero ? `${point.numero} · ` : ''}${point.descripcion || 'Punto de venta'}`));
     }
     const currencySelect = byId('tipoMonedaId');
-    currencySelect.replaceChildren(makeOption('', 'Seleccioná una moneda'));
+    currencySelect.replaceChildren(makeOption('', 'Seleccionar'));
     for (const money of catalogos.tiposMoneda ?? []) {
         currencySelect.append(makeOption(money.id, `${money.simbolo ?? ''} ${money.denominacion}`.trim()));
     }
     const productSelect = byId('producto-articulo');
-    productSelect.replaceChildren(makeOption('', 'Seleccioná un artículo'));
+    productSelect.replaceChildren(makeOption('', 'Seleccionar'));
     for (const article of catalogos.articulos ?? []) {
         productSelect.append(makeOption(article.id, `${article.codigo ? `${article.codigo} · ` : ''}${article.denominacion}`));
     }
@@ -103,9 +103,9 @@ function calculateSubtotal(line) {
 function updateTotals() {
     const net = lineas.reduce((sum, line) => sum + calculateSubtotal(line), 0);
     const iva = net * 0.21;
-    byId('neto-estimado').textContent = currency(net);
-    byId('iva-estimado').textContent = currency(iva);
-    byId('total-estimado').textContent = currency(net + iva);
+    byId('neto-total').textContent = currency(net);
+    byId('iva-total').textContent = currency(iva);
+    byId('total-final').textContent = currency(net + iva);
     byId('detalles-tbody').querySelectorAll('tr').forEach((row, index) => {
         const line = lineas[index];
         if (!line)
@@ -134,7 +134,7 @@ function renderLines() {
         const articleSelect = document.createElement('select');
         articleSelect.className = 'product-select';
         articleSelect.required = true;
-        articleSelect.append(makeOption('', 'Seleccioná un artículo'));
+        articleSelect.append(makeOption('', 'Seleccionar'));
         for (const article of catalogos?.articulos ?? []) {
             articleSelect.append(makeOption(article.id, `${article.codigo ? `${article.codigo} · ` : ''}${article.denominacion}`));
         }
@@ -201,7 +201,6 @@ async function loadInvoiceForEdit(id) {
     selectValue('clienteId', invoice.clienteId);
     selectValue('condicionIvaId', invoice.condicionIvaId);
     selectValue('tipoMonedaId', invoice.tipoMonedaId);
-    byId('importeCobrado').value = String(invoice.importeCobrado ?? 0);
     byId('observaciones').value = invoice.observaciones ?? '';
     estadoActual = invoice.estado || 'EMITIDA';
     lineas = (invoice.detalles ?? []).map(detail => createLine(detail));
@@ -215,7 +214,6 @@ async function loadInvoiceForEdit(id) {
     }
 }
 function readForm() {
-    const numberValue = Number(byId('numero').value);
     const details = lineas.map(line => ({
         articuloId: Number(line.articuloId),
         descripcion: line.descripcion || articleById(line.articuloId)?.denominacion || '',
@@ -223,14 +221,10 @@ function readForm() {
         porcentajeBonificacion: Number(line.porcentajeBonificacion || 0)
     }));
     return {
-        numero: Number.isFinite(numberValue) && byId('numero').value.trim() !== '' ? numberValue : null,
-        fechaEmision: byId('fechaEmision').value,
         clienteId: byId('clienteId').value ? Number(byId('clienteId').value) : null,
         condicionIvaId: Number(byId('condicionIvaId').value),
         tipoMonedaId: Number(byId('tipoMonedaId').value),
         puntoVentaId: Number(byId('puntoVentaId').value),
-        importeCobrado: Number(byId('importeCobrado').value || 0),
-        importeSaldo: 0,
         estado: estadoActual.toUpperCase() === 'ANULADA'
             ? byId('estado-reactivacion').value
             : estadoActual,
@@ -269,7 +263,7 @@ byId('producto-form').addEventListener('submit', event => {
     const quantity = Number(byId('producto-cantidad').value);
     const discount = Number(byId('producto-bonificacion').value || 0);
     if (!productId || !Number.isInteger(quantity) || quantity < 1) {
-        showAlert('Seleccioná un artículo y una cantidad entera mayor a cero.');
+        showAlert('Datos de producto incompletos.');
         return;
     }
     if (!Number.isFinite(discount) || discount < 0 || discount > 100) {
@@ -315,15 +309,11 @@ byId('factura-form').addEventListener('submit', async (event) => {
         return;
     }
     if (body.detalles.some(detail => !detail.articuloId || !Number.isInteger(detail.cantidad) || detail.cantidad < 1)) {
-        showAlert('Revisá los productos: todos deben tener artículo y una cantidad entera mayor a cero.');
+        showAlert('Hay productos incompletos.');
         return;
     }
     if (body.detalles.some(detail => detail.porcentajeBonificacion < 0 || detail.porcentajeBonificacion > 100)) {
         showAlert('La bonificación debe estar entre 0 y 100%.');
-        return;
-    }
-    if (body.importeCobrado < 0) {
-        showAlert('El importe cobrado no puede ser negativo.');
         return;
     }
     guardando = true;
@@ -372,11 +362,12 @@ async function init() {
         }
         else {
             try {
-                const invoices = await getAllFacturas();
-                const highestNumber = invoices.reduce((max, invoice) => Math.max(max, Number(invoice.numeroFactura) || 0), 0);
-                byId('numero').value = String(highestNumber + 1 || 1);
+                const proximo = await getSiguienteNumeroFactura();
+                byId('numero').value = String(proximo.numero);
             }
-            catch { /* El número se puede ingresar manualmente si falla la consulta. */ }
+            catch {
+                byId('numero').value = '';
+            }
             lineas = [];
             renderLines();
         }

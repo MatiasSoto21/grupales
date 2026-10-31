@@ -1,4 +1,4 @@
-import { crearCliente, getAllFacturas, getCatalogos, getFactura, guardarFactura } from './api.js';
+import { crearCliente, getCatalogos, getFactura, getSiguienteNumeroFactura, guardarFactura } from './api.js';
 import { byId, clearAlert, currency, makeOption, showAlert } from './dom.js';
 import type { ArticuloCatalogo, Catalogos, DetalleFactura, DetalleRequest, FacturaRequest } from './types.js';
 
@@ -33,23 +33,23 @@ async function loadCatalogs(): Promise<void> {
   for (const client of catalogos.clientes ?? []) clientSelect.append(makeOption(client.id, client.denominacion));
 
   const taxSelect = byId<HTMLSelectElement>('condicionIvaId');
-  taxSelect.replaceChildren(makeOption('', 'Seleccioná una condición'));
+  taxSelect.replaceChildren(makeOption('', 'Seleccionar'));
   for (const tax of catalogos.condicionesIva ?? []) taxSelect.append(makeOption(tax.id, tax.denominacion));
 
   const pointSelect = byId<HTMLSelectElement>('puntoVentaId');
-  pointSelect.replaceChildren(makeOption('', 'Seleccioná un punto de venta'));
+  pointSelect.replaceChildren(makeOption('', 'Seleccionar'));
   for (const point of catalogos.puntosVenta ?? []) {
     pointSelect.append(makeOption(point.id, `${point.numero ? `${point.numero} · ` : ''}${point.descripcion || 'Punto de venta'}`));
   }
 
   const currencySelect = byId<HTMLSelectElement>('tipoMonedaId');
-  currencySelect.replaceChildren(makeOption('', 'Seleccioná una moneda'));
+  currencySelect.replaceChildren(makeOption('', 'Seleccionar'));
   for (const money of catalogos.tiposMoneda ?? []) {
     currencySelect.append(makeOption(money.id, `${money.simbolo ?? ''} ${money.denominacion}`.trim()));
   }
 
   const productSelect = byId<HTMLSelectElement>('producto-articulo');
-  productSelect.replaceChildren(makeOption('', 'Seleccioná un artículo'));
+  productSelect.replaceChildren(makeOption('', 'Seleccionar'));
   for (const article of catalogos.articulos ?? []) {
     productSelect.append(makeOption(article.id, `${article.codigo ? `${article.codigo} · ` : ''}${article.denominacion}`));
   }
@@ -114,9 +114,9 @@ function calculateSubtotal(line: DetalleFactura): number {
 function updateTotals(): void {
   const net = lineas.reduce((sum, line) => sum + calculateSubtotal(line), 0);
   const iva = net * 0.21;
-  byId<HTMLElement>('neto-estimado').textContent = currency(net);
-  byId<HTMLElement>('iva-estimado').textContent = currency(iva);
-  byId<HTMLElement>('total-estimado').textContent = currency(net + iva);
+  byId<HTMLElement>('neto-total').textContent = currency(net);
+  byId<HTMLElement>('iva-total').textContent = currency(iva);
+  byId<HTMLElement>('total-final').textContent = currency(net + iva);
   byId<HTMLTableSectionElement>('detalles-tbody').querySelectorAll('tr').forEach((row, index) => {
     const line = lineas[index];
     if (!line) return;
@@ -143,7 +143,7 @@ function renderLines(): void {
     const articleSelect = document.createElement('select');
     articleSelect.className = 'product-select';
     articleSelect.required = true;
-    articleSelect.append(makeOption('', 'Seleccioná un artículo'));
+    articleSelect.append(makeOption('', 'Seleccionar'));
     for (const article of catalogos?.articulos ?? []) {
       articleSelect.append(makeOption(article.id, `${article.codigo ? `${article.codigo} · ` : ''}${article.denominacion}`));
     }
@@ -207,7 +207,6 @@ async function loadInvoiceForEdit(id: number): Promise<void> {
   selectValue('clienteId', invoice.clienteId);
   selectValue('condicionIvaId', invoice.condicionIvaId);
   selectValue('tipoMonedaId', invoice.tipoMonedaId);
-  byId<HTMLInputElement>('importeCobrado').value = String(invoice.importeCobrado ?? 0);
   byId<HTMLInputElement>('observaciones').value = invoice.observaciones ?? '';
   estadoActual = invoice.estado || 'EMITIDA';
   lineas = (invoice.detalles ?? []).map(detail => createLine(detail));
@@ -222,7 +221,6 @@ async function loadInvoiceForEdit(id: number): Promise<void> {
 }
 
 function readForm(): FacturaRequest {
-  const numberValue = Number(byId<HTMLInputElement>('numero').value);
   const details: DetalleRequest[] = lineas.map(line => ({
     articuloId: Number(line.articuloId),
     descripcion: line.descripcion || articleById(line.articuloId)?.denominacion || '',
@@ -230,14 +228,10 @@ function readForm(): FacturaRequest {
     porcentajeBonificacion: Number(line.porcentajeBonificacion || 0)
   }));
   return {
-    numero: Number.isFinite(numberValue) && byId<HTMLInputElement>('numero').value.trim() !== '' ? numberValue : null,
-    fechaEmision: byId<HTMLInputElement>('fechaEmision').value,
     clienteId: byId<HTMLSelectElement>('clienteId').value ? Number(byId<HTMLSelectElement>('clienteId').value) : null,
     condicionIvaId: Number(byId<HTMLSelectElement>('condicionIvaId').value),
     tipoMonedaId: Number(byId<HTMLSelectElement>('tipoMonedaId').value),
     puntoVentaId: Number(byId<HTMLSelectElement>('puntoVentaId').value),
-    importeCobrado: Number(byId<HTMLInputElement>('importeCobrado').value || 0),
-    importeSaldo: 0,
     estado: estadoActual.toUpperCase() === 'ANULADA'
       ? byId<HTMLSelectElement>('estado-reactivacion').value
       : estadoActual,
@@ -278,7 +272,7 @@ byId<HTMLFormElement>('producto-form').addEventListener('submit', event => {
   const quantity = Number(byId<HTMLInputElement>('producto-cantidad').value);
   const discount = Number(byId<HTMLInputElement>('producto-bonificacion').value || 0);
   if (!productId || !Number.isInteger(quantity) || quantity < 1) {
-    showAlert('Seleccioná un artículo y una cantidad entera mayor a cero.');
+    showAlert('Datos de producto incompletos.');
     return;
   }
   if (!Number.isFinite(discount) || discount < 0 || discount > 100) {
@@ -319,13 +313,11 @@ byId<HTMLFormElement>('factura-form').addEventListener('submit', async event => 
   }
   if (body.detalles.length === 0) { showAlert('Agregá al menos un producto.'); return; }
   if (body.detalles.some(detail => !detail.articuloId || !Number.isInteger(detail.cantidad) || detail.cantidad < 1)) {
-    showAlert('Revisá los productos: todos deben tener artículo y una cantidad entera mayor a cero.'); return;
+    showAlert('Hay productos incompletos.'); return;
   }
   if (body.detalles.some(detail => detail.porcentajeBonificacion < 0 || detail.porcentajeBonificacion > 100)) {
     showAlert('La bonificación debe estar entre 0 y 100%.'); return;
   }
-  if (body.importeCobrado < 0) { showAlert('El importe cobrado no puede ser negativo.'); return; }
-
   guardando = true;
   const saveButton = byId<HTMLButtonElement>('btn-guardar');
   saveButton.disabled = true;
@@ -367,10 +359,11 @@ async function init(): Promise<void> {
       await loadInvoiceForEdit(idEdicion);
     } else {
       try {
-        const invoices = await getAllFacturas();
-        const highestNumber = invoices.reduce((max, invoice) => Math.max(max, Number(invoice.numeroFactura) || 0), 0);
-        byId<HTMLInputElement>('numero').value = String(highestNumber + 1 || 1);
-      } catch { /* El número se puede ingresar manualmente si falla la consulta. */ }
+        const proximo = await getSiguienteNumeroFactura();
+        byId<HTMLInputElement>('numero').value = String(proximo.numero);
+      } catch {
+        byId<HTMLInputElement>('numero').value = '';
+      }
       lineas = [];
       renderLines();
     }

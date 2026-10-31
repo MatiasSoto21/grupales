@@ -42,6 +42,9 @@ export async function getFacturas(query = '', options) {
         params.set('size', options.size.toString());
     return request(`${FACTURAS_API}${params.toString() ? '?' + params.toString() : ''}`);
 }
+export function getSiguienteNumeroFactura() {
+    return request(`${FACTURAS_API}/siguiente-numero`);
+}
 export async function getAllFacturas(options = {}) {
     const size = options.size ?? 100;
     let page = options.page ?? 0;

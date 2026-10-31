@@ -86,8 +86,6 @@ class FacturacionApplicationTests {
 				existing.getCondicionIva().getId(),
 				existing.getTipoMoneda().getId(),
 				existing.getPuntoVenta().getId(),
-				0,
-				0,
 				"EMITIDA",
 				"Prueba de contrato REST",
 				List.of(new FacturaDetalleRequestDTO(
@@ -101,7 +99,7 @@ class FacturacionApplicationTests {
 				.content(objectMapper.writeValueAsString(request)))
 				.andExpect(status().isCreated())
 				.andExpect(jsonPath("$.id").exists())
-				.andExpect(jsonPath("$.numeroFactura").value(request.getNumero()))
+				.andExpect(jsonPath("$.numeroFactura").isNumber())
 				.andReturn();
 
 		FacturaReporteDTO created = objectMapper.readValue(
@@ -267,8 +265,6 @@ class FacturacionApplicationTests {
 				existing.getCondicionIva().getId(),
 				existing.getTipoMoneda().getId(),
 				existing.getPuntoVenta().getId(),
-				0,
-				0,
 				"EMITIDA",
 				"Test cantidad fraccionaria",
 				List.of(detail));

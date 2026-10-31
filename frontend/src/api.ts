@@ -36,6 +36,10 @@ export async function getFacturas(query = '', options?: GetFacturasOptions): Pro
   return request<PageResponse<FacturaResumen>>(`${FACTURAS_API}${params.toString() ? '?' + params.toString() : ''}`);
 }
 
+export function getSiguienteNumeroFactura(): Promise<{ numero: number }> {
+  return request<{ numero: number }>(`${FACTURAS_API}/siguiente-numero`);
+}
+
 export async function getAllFacturas(options: GetFacturasOptions = {}): Promise<FacturaResumen[]> {
   const size = options.size ?? 100;
   let page = options.page ?? 0;

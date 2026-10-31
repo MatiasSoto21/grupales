@@ -204,17 +204,19 @@ public class FacturaService {
 
     private static final double IVA_PORCENTAJE = 21.0;
 
+    public long obtenerSiguienteNumero() {
+        return facturaVentaRepository
+                .findTopByOrderByNumeroDesc()
+                .map(actual -> actual.getNumero() == null ? 1L : actual.getNumero() + 1L)
+                .orElse(1L);
+    }
+
     @Transactional
-    public FacturaVenta crearFactura(FacturaRequestDTO request) {
+    public synchronized FacturaVenta crearFactura(FacturaRequestDTO request) {
 
         if (request == null) {
             throw new IllegalArgumentException(
                     "Los datos de la factura son obligatorios");
-        }
-
-        if (request.getFechaEmision() == null) {
-            throw new IllegalArgumentException(
-                    "La fecha de emisión es obligatoria");
         }
 
         if (request.getPuntoVentaId() == null
@@ -261,9 +263,10 @@ public class FacturaService {
         // 2. Construir la cabecera de la factura.
         FacturaVenta factura = new FacturaVenta();
         LocalDate hoy = LocalDate.now();
+        long siguienteNumero = obtenerSiguienteNumero();
 
-        factura.setNumero(request.getNumero());
-        factura.setFechaEmision(request.getFechaEmision());
+        factura.setNumero(siguienteNumero);
+        factura.setFechaEmision(hoy);
         factura.setCliente(cliente);
         factura.setCondicionIva(condicionIva);
         factura.setTipoMoneda(tipoMoneda);
@@ -345,19 +348,11 @@ public class FacturaService {
             total += subtotal;
         }
 
-        // 4. Calcular el total y el saldo.
+        // 4. La factura emitida queda cobrada por su total.
         total = redondear(total);
-
-        double cobrado = request.getImporteCobrado();
-
-        if (cobrado < 0 || cobrado > total) {
-            throw new IllegalArgumentException(
-                    "El importe cobrado debe estar entre cero y el total");
-        }
-
         factura.setImporteTotal(total);
-        factura.setImporteCobrado(redondear(cobrado));
-        factura.setImporteSaldo(redondear(total - cobrado));
+        factura.setImporteCobrado(total);
+        factura.setImporteSaldo(0.0);
 
         // 5. Guardar la factura junto con sus detalles.
         return facturaVentaRepository.save(factura);
@@ -377,10 +372,6 @@ public class FacturaService {
                         "No existe la factura con ID " + id));
 
         // 2. Validar los datos obligatorios.
-        if (request.getFechaEmision() == null) {
-            throw new IllegalArgumentException("La fecha de emisión es obligatoria");
-        }
-
         if (request.getPuntoVentaId() == null
                 || request.getCondicionIvaId() == null
                 || request.getTipoMonedaId() == null) {
@@ -423,11 +414,6 @@ public class FacturaService {
         // 4. Actualizar la cabecera sin crear otra factura.
         LocalDate hoy = LocalDate.now();
 
-        if (request.getNumero() != null) {
-            factura.setNumero(request.getNumero());
-        }
-
-        factura.setFechaEmision(request.getFechaEmision());
         factura.setCliente(cliente);
         factura.setCondicionIva(condicionIva);
         factura.setTipoMoneda(tipoMoneda);
@@ -511,18 +497,11 @@ public class FacturaService {
             total += subtotal;
         }
 
-        // 6. Recalcular total, cobrado y saldo.
+        // 6. Recalcular total; la factura queda cobrada por su importe total.
         total = redondear(total);
-        double cobrado = request.getImporteCobrado();
-
-        if (cobrado < 0 || cobrado > total) {
-            throw new IllegalArgumentException(
-                    "El importe cobrado debe estar entre cero y el total");
-        }
-
         factura.setImporteTotal(total);
-        factura.setImporteCobrado(redondear(cobrado));
-        factura.setImporteSaldo(redondear(total - cobrado));
+        factura.setImporteCobrado(total);
+        factura.setImporteSaldo(0.0);
 
         // 7. Guardar los cambios.
         return facturaVentaRepository.save(factura);
