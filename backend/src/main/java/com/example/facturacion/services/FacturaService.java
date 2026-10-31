@@ -96,13 +96,28 @@ public class FacturaService {
             String estado, Double montoMinimo, Long clienteId, boolean sinCliente, Long numero,
             Long numeroDesde, Long numeroHasta) {
         return buscarFacturasFiltradas(fechaDesde, fechaHasta, estado, montoMinimo,
-                clienteId, sinCliente, numero, numeroDesde, numeroHasta, -1, -1);
+                clienteId, sinCliente, numero, numeroDesde, numeroHasta, "fechaEmision", "desc");
+    }
+
+    public List<FacturaReporteDTO> buscarFacturasFiltradas(LocalDate fechaDesde, LocalDate fechaHasta,
+            String estado, Double montoMinimo, Long clienteId, boolean sinCliente, Long numero,
+            Long numeroDesde, Long numeroHasta, String sortBy, String sortDir) {
+        return buscarFacturasFiltradas(fechaDesde, fechaHasta, estado, montoMinimo,
+                clienteId, sinCliente, numero, numeroDesde, numeroHasta, -1, -1, sortBy, sortDir);
     }
 
     @Transactional(readOnly = true)
     public List<FacturaReporteDTO> buscarFacturasFiltradas(LocalDate fechaDesde, LocalDate fechaHasta,
             String estado, Double montoMinimo, Long clienteId, boolean sinCliente, Long numero,
             Long numeroDesde, Long numeroHasta, int page, int size) {
+        return buscarFacturasFiltradas(fechaDesde, fechaHasta, estado, montoMinimo,
+                clienteId, sinCliente, numero, numeroDesde, numeroHasta, page, size,
+                "fechaEmision", "desc");
+    }
+
+    public List<FacturaReporteDTO> buscarFacturasFiltradas(LocalDate fechaDesde, LocalDate fechaHasta,
+            String estado, Double montoMinimo, Long clienteId, boolean sinCliente, Long numero,
+            Long numeroDesde, Long numeroHasta, int page, int size, String sortBy, String sortDir) {
         StringBuilder jpql = new StringBuilder(SELECT_BASE).append("WHERE 1=1 ");
         Map<String, Object> params = new HashMap<>();
 
@@ -141,7 +156,23 @@ public class FacturaService {
             jpql.append("AND f.numero <= :numeroHasta ");
             params.put("numeroHasta", numeroHasta);
         }
-        jpql.append(GROUP_BY).append(" ORDER BY f.fechaEmision DESC, f.id DESC");
+        String orderExpression;
+        if ("numero".equalsIgnoreCase(sortBy)) {
+            orderExpression = "f.numero";
+        } else if ("total".equalsIgnoreCase(sortBy)) {
+            orderExpression = "f.importeTotal";
+        } else if ("fechaEmision".equalsIgnoreCase(sortBy)) {
+            orderExpression = "f.fechaEmision";
+        } else {
+            throw new IllegalArgumentException("Campo de ordenamiento no válido");
+        }
+        String direction = "asc".equalsIgnoreCase(sortDir) ? "ASC" : "DESC";
+        if (sortDir != null && !"asc".equalsIgnoreCase(sortDir) && !"desc".equalsIgnoreCase(sortDir)) {
+            throw new IllegalArgumentException("Dirección de ordenamiento no válida");
+        }
+
+        jpql.append(GROUP_BY).append(" ORDER BY ").append(orderExpression).append(" ")
+                .append(direction).append(", f.id DESC");
 
         TypedQuery<FacturaReporteDTO> query = em.createQuery(jpql.toString(), FacturaReporteDTO.class);
         params.forEach(query::setParameter);
@@ -204,11 +235,12 @@ public class FacturaService {
 
     private static final double IVA_PORCENTAJE = 21.0;
 
-    public long obtenerSiguienteNumero() {
-        return facturaVentaRepository
-                .findTopByOrderByNumeroDesc()
-                .map(actual -> actual.getNumero() == null ? 1L : actual.getNumero() + 1L)
-                .orElse(1L);
+    public synchronized long obtenerSiguienteNumero() {
+        long siguiente = Math.max(1L, facturaVentaRepository.obtenerNumeroMaximo() + 1L);
+        while (facturaVentaRepository.existsByNumero(siguiente)) {
+            siguiente++;
+        }
+        return siguiente;
     }
 
     @Transactional

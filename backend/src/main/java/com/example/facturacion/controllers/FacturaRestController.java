@@ -67,8 +67,11 @@ public class FacturaRestController {
             @RequestParam(required = false) Long numeroDesde,
             @RequestParam(required = false) Long numeroHasta,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "fechaEmision") String sortBy,
+            @RequestParam(defaultValue = "desc") String sortDir) {
 
+        validateSorting(sortBy, sortDir);
         if (page < 0 || size < 1 || page > Integer.MAX_VALUE / size) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
@@ -78,7 +81,7 @@ public class FacturaRestController {
         List<FacturaReporteDTO> content = facturaService.buscarFacturasFiltradas(
             fechaDesde, fechaHasta, estado, montoMinimo,
             clienteId, sinCliente, numero, numeroDesde, numeroHasta,
-            page, size
+            page, size, sortBy, sortDir
         );
 
         long totalElements = facturaService.contarFacturasFiltradas(
@@ -102,12 +105,16 @@ public class FacturaRestController {
             @RequestParam(defaultValue = "false") boolean sinCliente,
             @RequestParam(required = false) Long numero,
             @RequestParam(required = false) Long numeroDesde,
-            @RequestParam(required = false) Long numeroHasta) {
+            @RequestParam(required = false) Long numeroHasta,
+            @RequestParam(defaultValue = "fechaEmision") String sortBy,
+            @RequestParam(defaultValue = "desc") String sortDir) {
 
+        validateSorting(sortBy, sortDir);
         List<FacturaReporteDTO> facturas
                 = facturaService.buscarFacturasFiltradas(
                     fechaDesde, fechaHasta, estado, montoMinimo,
-                    clienteId, sinCliente, numero, numeroDesde, numeroHasta
+                    clienteId, sinCliente, numero, numeroDesde, numeroHasta,
+                    sortBy, sortDir
                 );
 
         return ResponseEntity.ok()
@@ -126,12 +133,16 @@ public class FacturaRestController {
             @RequestParam(defaultValue = "false") boolean sinCliente,
             @RequestParam(required = false) Long numero,
             @RequestParam(required = false) Long numeroDesde,
-            @RequestParam(required = false) Long numeroHasta) throws IOException {
+            @RequestParam(required = false) Long numeroHasta,
+            @RequestParam(defaultValue = "fechaEmision") String sortBy,
+            @RequestParam(defaultValue = "desc") String sortDir) throws IOException {
 
+        validateSorting(sortBy, sortDir);
         List<FacturaReporteDTO> facturas
                 = facturaService.buscarFacturasFiltradas(
                     fechaDesde, fechaHasta, estado, montoMinimo,
-                    clienteId, sinCliente, numero, numeroDesde, numeroHasta
+                    clienteId, sinCliente, numero, numeroDesde, numeroHasta,
+                    sortBy, sortDir
                 );
 
         return ResponseEntity.ok()
@@ -140,7 +151,7 @@ public class FacturaRestController {
                 .body(reporteService.generarExcel(facturas));
     }
 
-    @GetMapping("/{id}")
+    @GetMapping("/{id:[0-9]+}")
     public ResponseEntity<FacturaRequestDTO> obtenerPorId(
             @PathVariable Long id) {
 
@@ -198,7 +209,7 @@ public class FacturaRestController {
         return ResponseEntity.status(HttpStatus.CREATED).body(reporte);
     }
 
-    @PutMapping("/{id}")
+    @PutMapping("/{id:[0-9]+}")
     public ResponseEntity<FacturaReporteDTO> actualizar(
             @PathVariable Long id,
             @RequestBody FacturaRequestDTO request) {
@@ -221,7 +232,7 @@ public class FacturaRestController {
         return ResponseEntity.ok(reporte);
     }
 
-    @DeleteMapping("/{id}")
+    @DeleteMapping("/{id:[0-9]+}")
     public ResponseEntity<Void> eliminar(@PathVariable Long id) {
 
         facturaService.anularFactura(id);
@@ -229,10 +240,23 @@ public class FacturaRestController {
         return ResponseEntity.noContent().build();
     }
 
-    @PostMapping("/{id}/reactivar")
+    @PostMapping("/{id:[0-9]+}/reactivar")
     public ResponseEntity<Void> reactivar(@PathVariable Long id) {
         facturaService.reactivarFactura(id);
         return ResponseEntity.noContent().build();
+    }
+
+    private void validateSorting(String sortBy, String sortDir) {
+        boolean validField = "numero".equalsIgnoreCase(sortBy)
+                || "fechaEmision".equalsIgnoreCase(sortBy)
+                || "total".equalsIgnoreCase(sortBy);
+        boolean validDirection = "asc".equalsIgnoreCase(sortDir)
+                || "desc".equalsIgnoreCase(sortDir);
+        if (!validField || !validDirection) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Ordenamiento no válido");
+        }
     }
 
 }

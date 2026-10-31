@@ -221,6 +221,8 @@ function readForm() {
         porcentajeBonificacion: Number(line.porcentajeBonificacion || 0)
     }));
     return {
+        numero: idEdicion ? Number(byId('numero').value) || null : null,
+        fechaEmision: byId('fechaEmision').value || undefined,
         clienteId: byId('clienteId').value ? Number(byId('clienteId').value) : null,
         condicionIvaId: Number(byId('condicionIvaId').value),
         tipoMonedaId: Number(byId('tipoMonedaId').value),
@@ -363,7 +365,10 @@ async function init() {
         else {
             try {
                 const proximo = await getSiguienteNumeroFactura();
-                byId('numero').value = String(proximo.numero);
+                const numeroField = byId('numero');
+                if (proximo?.numero !== undefined && proximo?.numero !== null) {
+                    numeroField.value = String(proximo.numero);
+                }
             }
             catch {
                 byId('numero').value = '';

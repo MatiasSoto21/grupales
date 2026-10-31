@@ -7,6 +7,8 @@ const form = byId<HTMLFormElement>('filtros-form');
 const paginationNav = byId<HTMLElement>('pagination');
 let currentPage = 0;
 let totalPages = 1;
+let sortBy: 'numero' | 'fechaEmision' | 'total' = 'fechaEmision';
+let sortDir: 'asc' | 'desc' = 'desc';
 const PAGE_SIZE = 10;
 
 function formatDate(value: string | null | undefined): string {
@@ -233,6 +235,35 @@ function renderPagination(): void {
   });
 }
 
+function setupSorting(): void {
+  const headers = document.querySelectorAll<HTMLButtonElement>('button[data-sort]');
+  headers.forEach(header => {
+    header.addEventListener('click', () => {
+      const nextSort = header.dataset.sort as 'numero' | 'fechaEmision' | 'total';
+      if (sortBy === nextSort) {
+        sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+      } else {
+        sortBy = nextSort;
+        sortDir = 'asc';
+      }
+      currentPage = 0;
+      updateSortIndicators();
+      void loadInvoices();
+    });
+  });
+  updateSortIndicators();
+}
+
+function updateSortIndicators(): void {
+  document.querySelectorAll<HTMLButtonElement>('button[data-sort]').forEach(header => {
+    const active = header.dataset.sort === sortBy;
+    header.classList.toggle('sort-active', active);
+    header.setAttribute('aria-sort', active ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none');
+    const indicator = header.querySelector('.sort-indicator');
+    if (indicator) indicator.textContent = active ? (sortDir === 'asc' ? '▲' : '▼') : '↕';
+  });
+}
+
 async function loadInvoices(preserveScrollPosition = false): Promise<void> {
   const scrollY = window.scrollY;
   clearAlert();
@@ -242,7 +273,7 @@ async function loadInvoices(preserveScrollPosition = false): Promise<void> {
   }
   try {
     const baseParams = readFilters();
-    const options = { page: currentPage, size: PAGE_SIZE };
+    const options = { page: currentPage, size: PAGE_SIZE, sortBy, sortDir };
     const pageResponse = await getFacturas(baseParams.toString(), options);
     renderInvoices(pageResponse);
     byId<HTMLElement>('api-status').textContent = '● Backend conectado';
@@ -315,11 +346,14 @@ for (const [selector, path] of [['a[href="/api/facturas/pdf"]', '/pdf'], ['a[hre
       event.preventDefault();
       if (!validateFilters()) return;
       const query = readFilters();
+      query.set('sortBy', sortBy);
+      query.set('sortDir', sortDir);
       window.location.href = `${FACTURAS_API}${path}${query ? `?${query}` : ''}`;
     });
   }
 }
 
+setupSorting();
 void loadInvoices();
 void loadClientFilter().catch((error: unknown) => {
   byId<HTMLElement>('api-status').textContent = '● No se cargaron clientes';

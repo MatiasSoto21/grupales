@@ -32,7 +32,7 @@
   </section>
   <section class="card">
     <div class="card-head"><h2>Listado de facturas</h2><span id="resultado-texto" class="muted" style="font-size:.82rem">Cargando…</span></div>
-    <div class="table-wrap"><table class="table"><thead><tr><th>N.º factura</th><th>Fecha</th><th>Cliente</th><th>Condición IVA</th><th>Punto de venta</th><th>Estado</th><th class="text-right">Total</th><th class="text-center">Ítems</th><th>Acciones</th></tr></thead><tbody id="facturas-tbody"><tr><td colspan="9" class="loading">Cargando facturas…</td></tr></tbody></table></div>
+    <div class="table-wrap"><table class="table"><thead><tr><th><button type="button" class="sort-header" data-sort="numero">N.º factura <span class="sort-indicator">↕</span></button></th><th><button type="button" class="sort-header" data-sort="fechaEmision">Fecha <span class="sort-indicator">↕</span></button></th><th>Cliente</th><th>Condición IVA</th><th>Punto de venta</th><th>Estado</th><th class="text-right"><button type="button" class="sort-header" data-sort="total">Total <span class="sort-indicator">↕</span></button></th><th class="text-center">Ítems</th><th>Acciones</th></tr></thead><tbody id="facturas-tbody"><tr><td colspan="9" class="loading">Cargando facturas…</td></tr></tbody></table></div>
     <nav id="pagination" class="pagination-container" aria-label="Paginación de facturas"></nav>
   </section>
   <p class="footnote">La opción “Anular” realiza una baja lógica: conserva la factura y registra su fecha de anulación en el sistema.</p>

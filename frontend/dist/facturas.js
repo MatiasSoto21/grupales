@@ -5,6 +5,8 @@ const form = byId('filtros-form');
 const paginationNav = byId('pagination');
 let currentPage = 0;
 let totalPages = 1;
+let sortBy = 'fechaEmision';
+let sortDir = 'desc';
 const PAGE_SIZE = 10;
 function formatDate(value) {
     if (!value)
@@ -209,6 +211,35 @@ function renderPagination() {
         });
     });
 }
+function setupSorting() {
+    const headers = document.querySelectorAll('button[data-sort]');
+    headers.forEach(header => {
+        header.addEventListener('click', () => {
+            const nextSort = header.dataset.sort;
+            if (sortBy === nextSort) {
+                sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+            }
+            else {
+                sortBy = nextSort;
+                sortDir = 'asc';
+            }
+            currentPage = 0;
+            updateSortIndicators();
+            void loadInvoices();
+        });
+    });
+    updateSortIndicators();
+}
+function updateSortIndicators() {
+    document.querySelectorAll('button[data-sort]').forEach(header => {
+        const active = header.dataset.sort === sortBy;
+        header.classList.toggle('sort-active', active);
+        header.setAttribute('aria-sort', active ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none');
+        const indicator = header.querySelector('.sort-indicator');
+        if (indicator)
+            indicator.textContent = active ? (sortDir === 'asc' ? '▲' : '▼') : '↕';
+    });
+}
 async function loadInvoices(preserveScrollPosition = false) {
     const scrollY = window.scrollY;
     clearAlert();
@@ -218,7 +249,7 @@ async function loadInvoices(preserveScrollPosition = false) {
     }
     try {
         const baseParams = readFilters();
-        const options = { page: currentPage, size: PAGE_SIZE };
+        const options = { page: currentPage, size: PAGE_SIZE, sortBy, sortDir };
         const pageResponse = await getFacturas(baseParams.toString(), options);
         renderInvoices(pageResponse);
         byId('api-status').textContent = '● Backend conectado';
@@ -297,10 +328,13 @@ for (const [selector, path] of [['a[href="/api/facturas/pdf"]', '/pdf'], ['a[hre
             if (!validateFilters())
                 return;
             const query = readFilters();
+            query.set('sortBy', sortBy);
+            query.set('sortDir', sortDir);
             window.location.href = `${FACTURAS_API}${path}${query ? `?${query}` : ''}`;
         });
     }
 }
+setupSorting();
 void loadInvoices();
 void loadClientFilter().catch((error) => {
     byId('api-status').textContent = '● No se cargaron clientes';

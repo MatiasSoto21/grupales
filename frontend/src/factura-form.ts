@@ -228,6 +228,8 @@ function readForm(): FacturaRequest {
     porcentajeBonificacion: Number(line.porcentajeBonificacion || 0)
   }));
   return {
+    numero: idEdicion ? Number(byId<HTMLInputElement>('numero').value) || null : null,
+    fechaEmision: byId<HTMLInputElement>('fechaEmision').value || undefined,
     clienteId: byId<HTMLSelectElement>('clienteId').value ? Number(byId<HTMLSelectElement>('clienteId').value) : null,
     condicionIvaId: Number(byId<HTMLSelectElement>('condicionIvaId').value),
     tipoMonedaId: Number(byId<HTMLSelectElement>('tipoMonedaId').value),
@@ -360,7 +362,10 @@ async function init(): Promise<void> {
     } else {
       try {
         const proximo = await getSiguienteNumeroFactura();
-        byId<HTMLInputElement>('numero').value = String(proximo.numero);
+        const numeroField = byId<HTMLInputElement>('numero');
+        if (proximo?.numero !== undefined && proximo?.numero !== null) {
+          numeroField.value = String(proximo.numero);
+        }
       } catch {
         byId<HTMLInputElement>('numero').value = '';
       }

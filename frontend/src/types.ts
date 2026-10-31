@@ -24,6 +24,8 @@ export interface GetFacturasOptions {
   numeroHasta?: number;
   page?: number;
   size?: number;
+  sortBy?: 'numero' | 'fechaEmision' | 'total';
+  sortDir?: 'asc' | 'desc';
 }
 
 export interface PageResponse<T> {

@@ -6,8 +6,9 @@ Memoria del proyecto entre sesiones. Maximo 50 lineas: resume o elimina lo que y
 - v2 implementada: CRUD/reactivación de facturas, alta de cliente desde factura, filtros combinables, paginación, modales de factura/cliente/producto y validación de cantidades enteras.
 - Las nuevas facturas inician sin líneas de producto precargadas.
 - El importe cobrado no es editable ni parcial: siempre coincide con el total calculado y el saldo es cero.
-- Número y fecha de emisión son inmutables desde el formulario: el backend genera ambos al crear.
+- Número y fecha de emisión son inmutables desde el formulario: el backend genera ambos al crear; al editar, el payload los conserva y el backend no los modifica. La numeración usa el máximo persistido, incluidas facturas anuladas.
 - La interfaz de facturas se mantiene limpia de textos guía, placeholders explicativos y etiquetas "estimado".
+- El listado ordena por número, fecha o total en el backend antes de paginar; el orden seleccionado se conserva en páginas y exportaciones.
 
 ## Decisiones y por que
 - Mantener el proyecto con Java 21 respetando el AGENTS.md.

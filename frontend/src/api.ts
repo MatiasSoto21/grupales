@@ -32,6 +32,8 @@ export async function getFacturas(query = '', options?: GetFacturasOptions): Pro
   if (options?.numeroHasta !== undefined) params.set('numeroHasta', options.numeroHasta.toString());
   if (options?.page !== undefined) params.set('page', options.page.toString());
   if (options?.size !== undefined) params.set('size', options.size.toString());
+  if (options?.sortBy) params.set('sortBy', options.sortBy);
+  if (options?.sortDir) params.set('sortDir', options.sortDir);
 
   return request<PageResponse<FacturaResumen>>(`${FACTURAS_API}${params.toString() ? '?' + params.toString() : ''}`);
 }

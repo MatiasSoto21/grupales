@@ -27,6 +27,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 
@@ -54,6 +55,30 @@ class FacturacionApplicationTests {
 
 	@Test
 	void contextLoads() {
+	}
+
+	@Test
+	void invoiceSortingRejectsInvalidParameters() throws Exception {
+		mockMvc.perform(get("/api/facturas")
+				.param("sortBy", "cliente")
+				.param("sortDir", "asc"))
+				.andExpect(status().isBadRequest());
+		mockMvc.perform(get("/api/facturas")
+				.param("sortBy", "numero")
+				.param("sortDir", "sideways"))
+				.andExpect(status().isBadRequest());
+	}
+
+	@Test
+	void invoiceNumberSortingIsAppliedBeforePagination() {
+		List<FacturaReporteDTO> ascending = facturaService.buscarFacturasFiltradas(
+				null, null, null, null, null, false, null, null, null,
+				0, 100, "numero", "asc");
+		List<Long> numbers = ascending.stream()
+				.map(FacturaReporteDTO::getNumeroFactura)
+				.filter(java.util.Objects::nonNull)
+				.toList();
+		Assertions.assertEquals(numbers.stream().sorted().toList(), numbers);
 	}
 
 	@Test
@@ -196,6 +221,38 @@ class FacturacionApplicationTests {
 					null, null, null, null, null, false, null, min, max);
 			Assertions.assertEquals(invoiceNumbers.size(), range.size());
 		}
+	}
+
+	@Test
+	@Transactional
+	void invoiceNumbersContinueAfterCancellationAndAreNotReused() {
+		FacturaVenta existing = facturaVentaRepository.findAll().stream()
+				.filter(invoice -> !invoice.getDetalles().isEmpty())
+				.findFirst()
+				.orElseThrow();
+		FacturaRequestDTO request = new FacturaRequestDTO(
+				existing.getNumero(),
+				existing.getFechaEmision(),
+				existing.getCliente() == null ? null : existing.getCliente().getId(),
+				existing.getCondicionIva().getId(),
+				existing.getTipoMoneda().getId(),
+				existing.getPuntoVenta().getId(),
+				"EMITIDA",
+				"Prueba de numeración",
+				List.of(new FacturaDetalleRequestDTO(
+					existing.getDetalles().get(0).getListaPrecioArticulo().getArticulo().getId(),
+					"Detalle de numeración",
+					1,
+					0)));
+
+		long before = facturaService.obtenerSiguienteNumero();
+		FacturaVenta first = facturaService.crearFactura(request);
+		Assertions.assertEquals(before, first.getNumero());
+
+		facturaService.anularFactura(first.getId());
+		FacturaVenta second = facturaService.crearFactura(request);
+		Assertions.assertEquals(before + 1, second.getNumero());
+		Assertions.assertNotEquals(first.getNumero(), second.getNumero());
 	}
 
 	@Test

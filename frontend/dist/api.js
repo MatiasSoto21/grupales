@@ -40,6 +40,10 @@ export async function getFacturas(query = '', options) {
         params.set('page', options.page.toString());
     if (options?.size !== undefined)
         params.set('size', options.size.toString());
+    if (options?.sortBy)
+        params.set('sortBy', options.sortBy);
+    if (options?.sortDir)
+        params.set('sortDir', options.sortDir);
     return request(`${FACTURAS_API}${params.toString() ? '?' + params.toString() : ''}`);
 }
 export function getSiguienteNumeroFactura() {
