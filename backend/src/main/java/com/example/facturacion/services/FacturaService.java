@@ -166,10 +166,10 @@ public class FacturaService {
         } else {
             throw new IllegalArgumentException("Campo de ordenamiento no válido");
         }
-        String direction = "asc".equalsIgnoreCase(sortDir) ? "ASC" : "DESC";
-        if (sortDir != null && !"asc".equalsIgnoreCase(sortDir) && !"desc".equalsIgnoreCase(sortDir)) {
+        if (!"asc".equalsIgnoreCase(sortDir) && !"desc".equalsIgnoreCase(sortDir)) {
             throw new IllegalArgumentException("Dirección de ordenamiento no válida");
         }
+        String direction = "asc".equalsIgnoreCase(sortDir) ? "ASC" : "DESC";
 
         jpql.append(GROUP_BY).append(" ORDER BY ").append(orderExpression).append(" ")
                 .append(direction).append(", f.id DESC");

@@ -9,6 +9,7 @@ let currentPage = 0;
 let totalPages = 1;
 let sortBy: 'numero' | 'fechaEmision' | 'total' = 'fechaEmision';
 let sortDir: 'asc' | 'desc' = 'desc';
+let loadRequestId = 0;
 const PAGE_SIZE = 10;
 
 function formatDate(value: string | null | undefined): string {
@@ -235,37 +236,42 @@ function renderPagination(): void {
   });
 }
 
-function setupSorting(): void {
-  const headers = document.querySelectorAll<HTMLButtonElement>('button[data-sort]');
-  headers.forEach(header => {
-    header.addEventListener('click', () => {
-      const nextSort = header.dataset.sort as 'numero' | 'fechaEmision' | 'total';
-      if (sortBy === nextSort) {
-        sortDir = sortDir === 'asc' ? 'desc' : 'asc';
-      } else {
-        sortBy = nextSort;
-        sortDir = 'asc';
-      }
-      currentPage = 0;
-      updateSortIndicators();
-      void loadInvoices();
-    });
-  });
-  updateSortIndicators();
+function sortLabel(): string {
+  const field = sortBy === 'numero' ? 'Número' : sortBy === 'total' ? 'Total' : 'Fecha';
+  return `Ordenar: ${field} ${sortDir === 'asc' ? '↑' : '↓'}`;
 }
 
-function updateSortIndicators(): void {
-  document.querySelectorAll<HTMLButtonElement>('button[data-sort]').forEach(header => {
-    const active = header.dataset.sort === sortBy;
-    header.classList.toggle('sort-active', active);
-    header.setAttribute('aria-sort', active ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none');
-    const indicator = header.querySelector('.sort-indicator');
-    if (indicator) indicator.textContent = active ? (sortDir === 'asc' ? '▲' : '▼') : '↕';
+function setupSorting(): void {
+  const modal = byId<HTMLDialogElement>('sort-modal');
+  const field = byId<HTMLSelectElement>('sort-field');
+  const direction = byId<HTMLSelectElement>('sort-direction');
+  const button = byId<HTMLButtonElement>('btn-abrir-orden');
+
+  button.textContent = sortLabel();
+  button.addEventListener('click', () => {
+    field.value = sortBy;
+    direction.value = sortDir;
+    modal.showModal();
+  });
+  byId<HTMLButtonElement>('btn-cerrar-sort-modal').addEventListener('click', () => modal.close());
+  byId<HTMLButtonElement>('btn-cancelar-sort').addEventListener('click', () => modal.close());
+  modal.addEventListener('click', event => {
+    if (event.target === modal) modal.close();
+  });
+  byId<HTMLFormElement>('sort-form').addEventListener('submit', event => {
+    event.preventDefault();
+    sortBy = field.value as 'numero' | 'fechaEmision' | 'total';
+    sortDir = direction.value as 'asc' | 'desc';
+    currentPage = 0;
+    button.textContent = sortLabel();
+    modal.close();
+    void loadInvoices(true);
   });
 }
 
 async function loadInvoices(preserveScrollPosition = false): Promise<void> {
   const scrollY = window.scrollY;
+  const requestId = ++loadRequestId;
   clearAlert();
   byId<HTMLElement>('api-status').textContent = 'Consultando backend…';
   if (!preserveScrollPosition) {
@@ -275,6 +281,7 @@ async function loadInvoices(preserveScrollPosition = false): Promise<void> {
     const baseParams = readFilters();
     const options = { page: currentPage, size: PAGE_SIZE, sortBy, sortDir };
     const pageResponse = await getFacturas(baseParams.toString(), options);
+    if (requestId !== loadRequestId) return;
     renderInvoices(pageResponse);
     byId<HTMLElement>('api-status').textContent = '● Backend conectado';
     byId<HTMLElement>('api-status').style.color = '#087443';
@@ -282,6 +289,7 @@ async function loadInvoices(preserveScrollPosition = false): Promise<void> {
       window.scrollTo(0, scrollY);
     }
   } catch (error: unknown) {
+    if (requestId !== loadRequestId) return;
     tbody.innerHTML = '<tr><td colspan="9" class="loading">No se pudieron cargar las facturas.</td></tr>';
     byId<HTMLElement>('resultado-texto').textContent = 'Error de conexión';
     byId<HTMLElement>('api-status').textContent = '● Backend no disponible';

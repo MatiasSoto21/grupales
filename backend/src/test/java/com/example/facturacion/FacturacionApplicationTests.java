@@ -79,6 +79,16 @@ class FacturacionApplicationTests {
 				.filter(java.util.Objects::nonNull)
 				.toList();
 		Assertions.assertEquals(numbers.stream().sorted().toList(), numbers);
+
+		List<FacturaReporteDTO> descending = facturaService.buscarFacturasFiltradas(
+				null, null, null, null, null, false, null, null, null,
+				0, 100, "numero", "desc");
+		List<Long> descendingNumbers = descending.stream()
+				.map(FacturaReporteDTO::getNumeroFactura)
+				.filter(java.util.Objects::nonNull)
+				.toList();
+		Assertions.assertEquals(descendingNumbers.stream().sorted(java.util.Comparator.reverseOrder()).toList(),
+				descendingNumbers);
 	}
 
 	@Test

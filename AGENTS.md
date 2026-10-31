@@ -71,6 +71,8 @@ getFacturas('', {
 - Invoice sorting is executed by the backend before pagination.
 - Allowed REST fields are `numero`, `fechaEmision`, and `total`; allowed directions are `asc` and `desc`.
 - Default sorting is `fechaEmision=desc` and an invoice ID is used as a stable tie-breaker.
+- The UI uses one dedicated sort button and a native modal; invoice table headers are not standalone sort buttons.
+- Changing sorting resets pagination to page 1 and only the latest asynchronous listing response may update the table.
 - PDF and Excel exports receive the same sorting parameters as the paginated listing.
 
 ## Modal interaction conventions

@@ -31,12 +31,20 @@
     </form></div>
   </section>
   <section class="card">
-    <div class="card-head"><h2>Listado de facturas</h2><span id="resultado-texto" class="muted" style="font-size:.82rem">Cargando…</span></div>
-    <div class="table-wrap"><table class="table"><thead><tr><th><button type="button" class="sort-header" data-sort="numero">N.º factura <span class="sort-indicator">↕</span></button></th><th><button type="button" class="sort-header" data-sort="fechaEmision">Fecha <span class="sort-indicator">↕</span></button></th><th>Cliente</th><th>Condición IVA</th><th>Punto de venta</th><th>Estado</th><th class="text-right"><button type="button" class="sort-header" data-sort="total">Total <span class="sort-indicator">↕</span></button></th><th class="text-center">Ítems</th><th>Acciones</th></tr></thead><tbody id="facturas-tbody"><tr><td colspan="9" class="loading">Cargando facturas…</td></tr></tbody></table></div>
+    <div class="card-head"><div><h2>Listado de facturas</h2><span id="resultado-texto" class="muted" style="font-size:.82rem">Cargando…</span></div><button type="button" id="btn-abrir-orden" class="btn btn-secondary">Ordenar: Fecha ↓</button></div>
+    <div class="table-wrap"><table class="table"><thead><tr><th>N.º factura</th><th>Fecha</th><th>Cliente</th><th>Condición IVA</th><th>Punto de venta</th><th>Estado</th><th class="text-right">Total</th><th class="text-center">Ítems</th><th>Acciones</th></tr></thead><tbody id="facturas-tbody"><tr><td colspan="9" class="loading">Cargando facturas…</td></tr></tbody></table></div>
     <nav id="pagination" class="pagination-container" aria-label="Paginación de facturas"></nav>
   </section>
   <p class="footnote">La opción “Anular” realiza una baja lógica: conserva la factura y registra su fecha de anulación en el sistema.</p>
 </main>
+<dialog id="sort-modal" class="modal sort-modal" aria-labelledby="sort-modal-title">
+  <div class="modal-header"><div><p class="eyebrow">Listado</p><h2 id="sort-modal-title">Ordenar facturas</h2></div><button type="button" id="btn-cerrar-sort-modal" class="modal-close" aria-label="Cerrar ventana">×</button></div>
+  <form id="sort-form" class="sort-form">
+    <div class="field"><label for="sort-field">Ordenar por</label><select id="sort-field"><option value="numero">Número de factura</option><option value="fechaEmision">Fecha de emisión</option><option value="total">Total</option></select></div>
+    <div class="field"><label for="sort-direction">Dirección</label><select id="sort-direction"><option value="asc">Ascendente</option><option value="desc">Descendente</option></select></div>
+    <div class="modal-actions"><button type="button" id="btn-cancelar-sort" class="btn btn-secondary">Cancelar</button><button type="submit" class="btn btn-primary">Aplicar</button></div>
+  </form>
+</dialog>
 <dialog id="factura-modal" class="modal factura-modal" aria-labelledby="factura-modal-title">
   <div class="modal-header"><div><p class="eyebrow">Gestión de facturas</p><h2 id="factura-modal-title">Factura</h2></div><button type="button" id="btn-cerrar-factura-modal" class="modal-close" aria-label="Cerrar ventana">×</button></div>
   <iframe id="factura-modal-frame" title="Formulario de factura"></iframe>

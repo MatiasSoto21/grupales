@@ -7,6 +7,7 @@ let currentPage = 0;
 let totalPages = 1;
 let sortBy = 'fechaEmision';
 let sortDir = 'desc';
+let loadRequestId = 0;
 const PAGE_SIZE = 10;
 function formatDate(value) {
     if (!value)
@@ -211,37 +212,40 @@ function renderPagination() {
         });
     });
 }
-function setupSorting() {
-    const headers = document.querySelectorAll('button[data-sort]');
-    headers.forEach(header => {
-        header.addEventListener('click', () => {
-            const nextSort = header.dataset.sort;
-            if (sortBy === nextSort) {
-                sortDir = sortDir === 'asc' ? 'desc' : 'asc';
-            }
-            else {
-                sortBy = nextSort;
-                sortDir = 'asc';
-            }
-            currentPage = 0;
-            updateSortIndicators();
-            void loadInvoices();
-        });
-    });
-    updateSortIndicators();
+function sortLabel() {
+    const field = sortBy === 'numero' ? 'Número' : sortBy === 'total' ? 'Total' : 'Fecha';
+    return `Ordenar: ${field} ${sortDir === 'asc' ? '↑' : '↓'}`;
 }
-function updateSortIndicators() {
-    document.querySelectorAll('button[data-sort]').forEach(header => {
-        const active = header.dataset.sort === sortBy;
-        header.classList.toggle('sort-active', active);
-        header.setAttribute('aria-sort', active ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none');
-        const indicator = header.querySelector('.sort-indicator');
-        if (indicator)
-            indicator.textContent = active ? (sortDir === 'asc' ? '▲' : '▼') : '↕';
+function setupSorting() {
+    const modal = byId('sort-modal');
+    const field = byId('sort-field');
+    const direction = byId('sort-direction');
+    const button = byId('btn-abrir-orden');
+    button.textContent = sortLabel();
+    button.addEventListener('click', () => {
+        field.value = sortBy;
+        direction.value = sortDir;
+        modal.showModal();
+    });
+    byId('btn-cerrar-sort-modal').addEventListener('click', () => modal.close());
+    byId('btn-cancelar-sort').addEventListener('click', () => modal.close());
+    modal.addEventListener('click', event => {
+        if (event.target === modal)
+            modal.close();
+    });
+    byId('sort-form').addEventListener('submit', event => {
+        event.preventDefault();
+        sortBy = field.value;
+        sortDir = direction.value;
+        currentPage = 0;
+        button.textContent = sortLabel();
+        modal.close();
+        void loadInvoices(true);
     });
 }
 async function loadInvoices(preserveScrollPosition = false) {
     const scrollY = window.scrollY;
+    const requestId = ++loadRequestId;
     clearAlert();
     byId('api-status').textContent = 'Consultando backend…';
     if (!preserveScrollPosition) {
@@ -251,6 +255,8 @@ async function loadInvoices(preserveScrollPosition = false) {
         const baseParams = readFilters();
         const options = { page: currentPage, size: PAGE_SIZE, sortBy, sortDir };
         const pageResponse = await getFacturas(baseParams.toString(), options);
+        if (requestId !== loadRequestId)
+            return;
         renderInvoices(pageResponse);
         byId('api-status').textContent = '● Backend conectado';
         byId('api-status').style.color = '#087443';
@@ -259,6 +265,8 @@ async function loadInvoices(preserveScrollPosition = false) {
         }
     }
     catch (error) {
+        if (requestId !== loadRequestId)
+            return;
         tbody.innerHTML = '<tr><td colspan="9" class="loading">No se pudieron cargar las facturas.</td></tr>';
         byId('resultado-texto').textContent = 'Error de conexión';
         byId('api-status').textContent = '● Backend no disponible';

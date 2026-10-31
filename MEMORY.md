@@ -8,7 +8,7 @@ Memoria del proyecto entre sesiones. Maximo 50 lineas: resume o elimina lo que y
 - El importe cobrado no es editable ni parcial: siempre coincide con el total calculado y el saldo es cero.
 - Número y fecha de emisión son inmutables desde el formulario: el backend genera ambos al crear; al editar, el payload los conserva y el backend no los modifica. La numeración usa el máximo persistido, incluidas facturas anuladas.
 - La interfaz de facturas se mantiene limpia de textos guía, placeholders explicativos y etiquetas "estimado".
-- El listado ordena por número, fecha o total en el backend antes de paginar; el orden seleccionado se conserva en páginas y exportaciones.
+- El listado ordena por número, fecha o total desde un único botón con modal; el cambio vuelve a la página 1 y solo aplica la respuesta más reciente para evitar rebotes entre solicitudes.
 
 ## Decisiones y por que
 - Mantener el proyecto con Java 21 respetando el AGENTS.md.
