@@ -35,6 +35,7 @@ public class DataInitializer implements CommandLineRunner {
             System.out.println(
                     "Ya existen facturas. Se omite la carga inicial."
             );
+            asegurarPreciosEnBaseExistente();
             return;
         }
 
@@ -224,58 +225,75 @@ public class DataInitializer implements CommandLineRunner {
         // LISTA DE PRECIOS
         // =====================================================
 
-        ListaPrecio listaPrecio = new ListaPrecio();
-        listaPrecio.setCodigo("LP01");
-        listaPrecio.setDenominacion("Lista General");
+        ListaPrecio listaMinorista = new ListaPrecio();
+        listaMinorista.setCodigo("LP01");
+        listaMinorista.setDenominacion("Minorista");
+        auditar(listaMinorista, admin);
+        em.persist(listaMinorista);
 
-        auditar(listaPrecio, admin);
-        em.persist(listaPrecio);
+        ListaPrecio listaMayorista = new ListaPrecio();
+        listaMayorista.setCodigo("LP02");
+        listaMayorista.setDenominacion("Mayorista");
+        auditar(listaMayorista, admin);
+        em.persist(listaMayorista);
 
         List<ListaPrecioArticulo> productos = new ArrayList<>();
 
         productos.add(crearPrecio(
-                listaPrecio, coca500, 2500, admin
+                listaMinorista, coca500, 2500, admin
         ));
 
         productos.add(crearPrecio(
-                listaPrecio, coca2250, 4200, admin
+                listaMinorista, coca2250, 4200, admin
         ));
 
         productos.add(crearPrecio(
-                listaPrecio, sprite500, 2300, admin
+                listaMinorista, sprite500, 2300, admin
         ));
 
         productos.add(crearPrecio(
-                listaPrecio, sprite1500, 3900, admin
+                listaMinorista, sprite1500, 3900, admin
         ));
 
         productos.add(crearPrecio(
-                listaPrecio, fanta500, 2200, admin
+                listaMinorista, fanta500, 2200, admin
         ));
 
         productos.add(crearPrecio(
-                listaPrecio, fanta1500, 3800, admin
+                listaMinorista, fanta1500, 3800, admin
         ));
 
         productos.add(crearPrecio(
-                listaPrecio, agua500, 1200, admin
+                listaMinorista, agua500, 1200, admin
         ));
 
         productos.add(crearPrecio(
-                listaPrecio, agua1500, 2100, admin
+                listaMinorista, agua1500, 2100, admin
         ));
 
         productos.add(crearPrecio(
-                listaPrecio, jugoNaranja, 1800, admin
+                listaMinorista, jugoNaranja, 1800, admin
         ));
 
         productos.add(crearPrecio(
-                listaPrecio, jugoMulti, 1950, admin
+                listaMinorista, jugoMulti, 1950, admin
         ));
 
         productos.add(crearPrecio(
-                listaPrecio, energetica, 2800, admin
+                listaMinorista, energetica, 2800, admin
         ));
+
+        productos.add(crearPrecio(listaMayorista, coca500, 2200, admin));
+        productos.add(crearPrecio(listaMayorista, coca2250, 3700, admin));
+        productos.add(crearPrecio(listaMayorista, sprite500, 2050, admin));
+        productos.add(crearPrecio(listaMayorista, sprite1500, 3400, admin));
+        productos.add(crearPrecio(listaMayorista, fanta500, 1950, admin));
+        productos.add(crearPrecio(listaMayorista, fanta1500, 3300, admin));
+        productos.add(crearPrecio(listaMayorista, agua500, 1000, admin));
+        productos.add(crearPrecio(listaMayorista, agua1500, 1800, admin));
+        productos.add(crearPrecio(listaMayorista, jugoNaranja, 1550, admin));
+        productos.add(crearPrecio(listaMayorista, jugoMulti, 1700, admin));
+        productos.add(crearPrecio(listaMayorista, energetica, 2450, admin));
 
         // =====================================================
         // CLIENTES
@@ -784,6 +802,93 @@ public class DataInitializer implements CommandLineRunner {
         em.persist(articulo);
 
         return articulo;
+    }
+
+    private void asegurarPreciosEnBaseExistente() {
+        Usuario admin = em.createQuery(
+                        "SELECT u FROM Usuario u WHERE u.usuario = :usuario",
+                        Usuario.class)
+                .setParameter("usuario", "admin")
+                .getResultStream()
+                .findFirst()
+                .orElse(null);
+        if (admin == null) {
+            return;
+        }
+
+        List<ListaPrecio> listasMinoristas = em.createQuery(
+                        "SELECT l FROM ListaPrecio l WHERE l.codigo = :codigo",
+                        ListaPrecio.class)
+                .setParameter("codigo", "LP01")
+                .getResultList();
+
+        ListaPrecio minorista;
+        if (listasMinoristas.isEmpty()) {
+            minorista = new ListaPrecio();
+            minorista.setCodigo("LP01");
+            minorista.setDenominacion("Minorista");
+            auditar(minorista, admin);
+            em.persist(minorista);
+        } else {
+            minorista = listasMinoristas.get(0);
+            if (!"Minorista".equals(minorista.getDenominacion())) {
+                minorista.setDenominacion("Minorista");
+                minorista.setFechaModificacion(LocalDate.now());
+                minorista.setUsuarioModificacion(admin);
+            }
+        }
+
+        List<ListaPrecio> listasMayoristas = em.createQuery(
+                        "SELECT l FROM ListaPrecio l WHERE l.codigo = :codigo",
+                        ListaPrecio.class)
+                .setParameter("codigo", "LP02")
+                .getResultList();
+
+        ListaPrecio mayorista;
+        if (listasMayoristas.isEmpty()) {
+            mayorista = new ListaPrecio();
+            mayorista.setCodigo("LP02");
+            mayorista.setDenominacion("Mayorista");
+            auditar(mayorista, admin);
+            em.persist(mayorista);
+        } else {
+            mayorista = listasMayoristas.get(0);
+        }
+
+        for (Articulo articulo : em.createQuery(
+                "SELECT a FROM Articulo a ORDER BY a.id", Articulo.class).getResultList()) {
+            List<ListaPrecioArticulo> preciosExistentes = em.createQuery(
+                            "SELECT l FROM ListaPrecioArticulo l WHERE l.articulo = :articulo ORDER BY l.id",
+                            ListaPrecioArticulo.class)
+                    .setParameter("articulo", articulo)
+                    .getResultList();
+
+            if (preciosExistentes.isEmpty()) {
+                continue;
+            }
+
+            boolean tieneMinorista = preciosExistentes.stream()
+                    .anyMatch(precio -> precio.getListaPrecio().getId().equals(minorista.getId()));
+            if (!tieneMinorista) {
+                ListaPrecioArticulo actual = preciosExistentes.get(0);
+                crearPrecio(minorista, articulo, actual.getPrecioVenta(), admin);
+            }
+
+            boolean tieneMayorista = preciosExistentes.stream()
+                    .anyMatch(precio -> precio.getListaPrecio().getId().equals(mayorista.getId()));
+            if (!tieneMayorista) {
+                double precioBase = preciosExistentes.stream()
+                        .map(ListaPrecioArticulo::getPrecioVenta)
+                        .filter(precio -> Double.isFinite(precio) && precio > 0)
+                        .findFirst()
+                        .orElse(0.0);
+                if (precioBase > 0) {
+                    crearPrecio(mayorista, articulo,
+                            Math.round(precioBase * 0.9 * 100.0) / 100.0, admin);
+                }
+            }
+        }
+        em.flush();
     }
 
     private ListaPrecioArticulo crearPrecio(

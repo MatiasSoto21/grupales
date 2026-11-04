@@ -340,13 +340,7 @@ public class FacturaService {
                         "La bonificación debe estar entre 0 y 100");
             }
 
-            ListaPrecioArticulo precioArticulo
-                    = listaPrecioArticuloRepository
-                            .findFirstByArticulo_Id(
-                                    detalleRequest.getArticuloId())
-                            .orElseThrow(() -> new IllegalArgumentException(
-                                    "No existe una lista de precios para el artículo "
-                                    + detalleRequest.getArticuloId()));
+            ListaPrecioArticulo precioArticulo = resolverPrecioArticulo(detalleRequest);
 
             double precioUnitario = precioArticulo.getPrecioVenta();
 
@@ -492,11 +486,7 @@ public class FacturaService {
                         "La bonificación debe estar entre 0 y 100");
             }
 
-            ListaPrecioArticulo precioArticulo = listaPrecioArticuloRepository
-                    .findFirstByArticulo_Id(detalleRequest.getArticuloId())
-                    .orElseThrow(() -> new IllegalArgumentException(
-                            "No existe una lista de precios para el artículo "
-                            + detalleRequest.getArticuloId()));
+            ListaPrecioArticulo precioArticulo = resolverPrecioArticulo(detalleRequest);
 
             double precioUnitario = precioArticulo.getPrecioVenta();
 
@@ -611,6 +601,29 @@ public class FacturaService {
         return BigDecimal.valueOf(importe)
                 .setScale(2, RoundingMode.HALF_UP)
                 .doubleValue();
+    }
+
+    private ListaPrecioArticulo resolverPrecioArticulo(FacturaDetalleRequestDTO detalleRequest) {
+        if (detalleRequest.getListaPrecioArticuloId() == null) {
+            throw new IllegalArgumentException(
+                    "Cada detalle debe indicar el precio de venta seleccionado");
+        }
+
+        ListaPrecioArticulo precioArticulo = listaPrecioArticuloRepository
+                .findById(detalleRequest.getListaPrecioArticuloId())
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "No existe el precio de venta indicado"));
+
+        if (!precioArticulo.getArticulo().getId().equals(detalleRequest.getArticuloId())) {
+            throw new IllegalArgumentException(
+                    "El precio seleccionado no pertenece al artículo indicado");
+        }
+        if (!Double.isFinite(precioArticulo.getPrecioVenta())
+                || precioArticulo.getPrecioVenta() <= 0) {
+            throw new IllegalArgumentException(
+                    "El precio de venta seleccionado debe ser mayor que cero");
+        }
+        return precioArticulo;
     }
 
 }

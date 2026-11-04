@@ -1,5 +1,5 @@
 import { crearCliente, getCatalogos, getFactura, getSiguienteNumeroFactura, guardarFactura } from './api.js';
-import { byId, clearAlert, currency, makeOption, showAlert } from './dom.js';
+import { byId, clearAlert, currency, initTheme, makeOption, showAlert } from './dom.js';
 import type { ArticuloCatalogo, Catalogos, DetalleFactura, DetalleRequest, FacturaRequest } from './types.js';
 
 const API_URL = 'http://localhost:8080/api/facturas';
@@ -13,13 +13,26 @@ let estadoActual = 'EMITIDA';
 let guardando = false;
 let creandoCliente = false;
 
+initTheme();
+
 function articleById(id: string | number | undefined): ArticuloCatalogo | undefined {
   return (catalogos?.articulos ?? []).find(article => String(article.id) === String(id));
+}
+
+function priceById(id: string | number | undefined) {
+  return (catalogos?.articulos ?? [])
+    .flatMap(article => article.precios ?? [])
+    .find(price => String(price.id) === String(id));
+}
+
+function linePrice(line: DetalleFactura): number {
+  return Number(priceById(line.listaPrecioArticuloId)?.precioVenta ?? 0);
 }
 
 function createLine(detail: Partial<DetalleFactura> = {}): DetalleFactura {
   return {
     articuloId: detail.articuloId ?? undefined,
+    listaPrecioArticuloId: detail.listaPrecioArticuloId ?? undefined,
     descripcion: detail.descripcion ?? '',
     cantidad: Number(detail.cantidad ?? 1),
     porcentajeBonificacion: Number(detail.porcentajeBonificacion ?? 0)
@@ -107,7 +120,7 @@ async function saveNewClient(): Promise<void> {
 }
 
 function calculateSubtotal(line: DetalleFactura): number {
-  const price = Number(articleById(line.articuloId)?.precioVenta ?? 0);
+  const price = linePrice(line);
   return price * Number(line.cantidad || 0) * (1 - Number(line.porcentajeBonificacion || 0) / 100);
 }
 
@@ -120,8 +133,8 @@ function updateTotals(): void {
   byId<HTMLTableSectionElement>('detalles-tbody').querySelectorAll('tr').forEach((row, index) => {
     const line = lineas[index];
     if (!line) return;
-    if (row.cells[3]) row.cells[3].textContent = currency(articleById(line.articuloId)?.precioVenta ?? 0);
-    if (row.cells[4]) row.cells[4].textContent = currency(calculateSubtotal(line));
+    if (row.cells[4]) row.cells[4].textContent = currency(linePrice(line));
+    if (row.cells[5]) row.cells[5].textContent = currency(calculateSubtotal(line));
   });
 }
 
@@ -131,7 +144,7 @@ function renderLines(): void {
   if (!catalogos) return;
   if (lineas.length === 0) {
     const row = document.createElement('tr');
-    row.innerHTML = '<td colspan="6" class="loading">Agregá al menos un producto para continuar.</td>';
+    row.innerHTML = '<td colspan="7" class="loading">Agregá al menos un producto para continuar.</td>';
     tableBody.append(row);
     updateTotals();
     return;
@@ -151,9 +164,24 @@ function renderLines(): void {
     articleSelect.addEventListener('change', () => {
       line.articuloId = articleSelect.value ? Number(articleSelect.value) : undefined;
       line.descripcion = articleById(articleSelect.value)?.denominacion ?? '';
-      updateTotals();
+      line.listaPrecioArticuloId = articleById(articleSelect.value)?.precios?.[0]?.id;
+      renderLines();
     });
     articleCell.append(articleSelect);
+    const priceCell = document.createElement('td');
+    const priceSelect = document.createElement('select');
+    priceSelect.className = 'price-select';
+    priceSelect.required = true;
+    priceSelect.append(makeOption('', 'Seleccionar precio'));
+    for (const price of articleById(line.articuloId)?.precios ?? []) {
+      priceSelect.append(makeOption(price.id, `${price.listaPrecioDenominacion} · ${currency(price.precioVenta)}`));
+    }
+    priceSelect.value = line.listaPrecioArticuloId == null ? '' : String(line.listaPrecioArticuloId);
+    priceSelect.addEventListener('change', () => {
+      line.listaPrecioArticuloId = priceSelect.value ? Number(priceSelect.value) : undefined;
+      updateTotals();
+    });
+    priceCell.append(priceSelect);
 
     const quantityCell = document.createElement('td');
     const quantity = document.createElement('input');
@@ -174,9 +202,9 @@ function renderLines(): void {
     });
     discountCell.append(discount);
 
-    const priceCell = document.createElement('td');
-    priceCell.className = 'text-right';
-    priceCell.textContent = currency(articleById(line.articuloId)?.precioVenta ?? 0);
+    const unitPriceCell = document.createElement('td');
+    unitPriceCell.className = 'text-right';
+    unitPriceCell.textContent = currency(linePrice(line));
     const subtotalCell = document.createElement('td');
     subtotalCell.className = 'text-right';
     subtotalCell.textContent = currency(calculateSubtotal(line));
@@ -186,7 +214,7 @@ function renderLines(): void {
     removeButton.type = 'button'; removeButton.className = 'btn btn-danger btn-small'; removeButton.textContent = 'Quitar';
     removeButton.addEventListener('click', () => { lineas.splice(index, 1); renderLines(); });
     actionsCell.append(removeButton);
-    row.append(articleCell, quantityCell, discountCell, priceCell, subtotalCell, actionsCell);
+    row.append(articleCell, priceCell, quantityCell, discountCell, unitPriceCell, subtotalCell, actionsCell);
     tableBody.append(row);
   });
   updateTotals();
@@ -223,6 +251,7 @@ async function loadInvoiceForEdit(id: number): Promise<void> {
 function readForm(): FacturaRequest {
   const details: DetalleRequest[] = lineas.map(line => ({
     articuloId: Number(line.articuloId),
+    listaPrecioArticuloId: Number(line.listaPrecioArticuloId),
     descripcion: line.descripcion || articleById(line.articuloId)?.denominacion || '',
     cantidad: Number(line.cantidad),
     porcentajeBonificacion: Number(line.porcentajeBonificacion || 0)
@@ -251,12 +280,24 @@ function updateProductPreview(): void {
   const productId = byId<HTMLSelectElement>('producto-articulo').value;
   const quantity = Number(byId<HTMLInputElement>('producto-cantidad').value || 0);
   const discount = Number(byId<HTMLInputElement>('producto-bonificacion').value || 0);
-  const price = Number(articleById(productId)?.precioVenta ?? 0);
+  const priceId = byId<HTMLSelectElement>('producto-precio').value;
+  const price = Number(priceById(priceId)?.precioVenta ?? 0);
   byId<HTMLElement>('producto-subtotal').textContent = currency(price * quantity * (1 - discount / 100));
+}
+
+function updateProductPriceOptions(): void {
+  const productId = byId<HTMLSelectElement>('producto-articulo').value;
+  const priceSelect = byId<HTMLSelectElement>('producto-precio');
+  priceSelect.replaceChildren(makeOption('', 'Seleccionar'));
+  for (const price of articleById(productId)?.precios ?? []) {
+    priceSelect.append(makeOption(price.id, `${price.listaPrecioDenominacion} · ${currency(price.precioVenta)}`));
+  }
+  updateProductPreview();
 }
 
 byId<HTMLButtonElement>('btn-agregar').addEventListener('click', () => {
   byId<HTMLSelectElement>('producto-articulo').value = '';
+  byId<HTMLSelectElement>('producto-precio').replaceChildren(makeOption('', 'Seleccionar artículo primero'));
   byId<HTMLInputElement>('producto-cantidad').value = '1';
   byId<HTMLInputElement>('producto-bonificacion').value = '0';
   updateProductPreview();
@@ -265,15 +306,17 @@ byId<HTMLButtonElement>('btn-agregar').addEventListener('click', () => {
 });
 byId<HTMLButtonElement>('btn-cerrar-producto').addEventListener('click', closeProductModal);
 byId<HTMLButtonElement>('btn-cancelar-producto').addEventListener('click', closeProductModal);
-for (const id of ['producto-articulo', 'producto-cantidad', 'producto-bonificacion']) {
+for (const id of ['producto-precio', 'producto-cantidad', 'producto-bonificacion']) {
   byId<HTMLInputElement | HTMLSelectElement>(id).addEventListener('input', updateProductPreview);
 }
+byId<HTMLSelectElement>('producto-articulo').addEventListener('change', updateProductPriceOptions);
 byId<HTMLFormElement>('producto-form').addEventListener('submit', event => {
   event.preventDefault();
   const productId = byId<HTMLSelectElement>('producto-articulo').value;
+  const priceId = byId<HTMLSelectElement>('producto-precio').value;
   const quantity = Number(byId<HTMLInputElement>('producto-cantidad').value);
   const discount = Number(byId<HTMLInputElement>('producto-bonificacion').value || 0);
-  if (!productId || !Number.isInteger(quantity) || quantity < 1) {
+  if (!productId || !priceId || !Number.isInteger(quantity) || quantity < 1) {
     showAlert('Datos de producto incompletos.');
     return;
   }
@@ -283,6 +326,7 @@ byId<HTMLFormElement>('producto-form').addEventListener('submit', event => {
   }
   lineas.push({
     articuloId: Number(productId),
+    listaPrecioArticuloId: Number(priceId),
     descripcion: articleById(productId)?.denominacion ?? '',
     cantidad: quantity,
     porcentajeBonificacion: discount
@@ -314,7 +358,9 @@ byId<HTMLFormElement>('factura-form').addEventListener('submit', async event => 
     return;
   }
   if (body.detalles.length === 0) { showAlert('Agregá al menos un producto.'); return; }
-  if (body.detalles.some(detail => !detail.articuloId || !Number.isInteger(detail.cantidad) || detail.cantidad < 1)) {
+  if (body.detalles.some(detail =>
+    !detail.articuloId || !detail.listaPrecioArticuloId
+    || !Number.isInteger(detail.cantidad) || detail.cantidad < 1)) {
     showAlert('Hay productos incompletos.'); return;
   }
   if (body.detalles.some(detail => detail.porcentajeBonificacion < 0 || detail.porcentajeBonificacion > 100)) {

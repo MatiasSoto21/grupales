@@ -2,12 +2,22 @@
 <html lang="es">
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Facturación | Gestión de ventas</title><link rel="stylesheet" href="/app.css">
+  <title>Facturación | Gestión de ventas</title>
+  <script>
+    try {
+      const savedTheme = localStorage.getItem('facturacion-theme');
+      const theme = savedTheme === 'light' || savedTheme === 'dark'
+        ? savedTheme
+        : (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      document.documentElement.dataset.theme = theme;
+    } catch (_) {}
+  </script>
+  <link rel="stylesheet" href="/app.css">
 </head>
 <body>
 <header class="topbar"><div class="topbar-inner">
   <a class="brand" href="/"><span class="brand-mark">▤</span><span>Facturación<small>Gestión de ventas</small></span></a>
-  <div class="top-actions"><a class="btn btn-secondary" href="/api/facturas/pdf">Descargar PDF ↗</a><a class="btn btn-secondary" href="/api/facturas/excel">Exportar Excel ↓</a><button type="button" class="btn btn-primary" id="btn-nueva-factura">＋ Nueva factura</button></div>
+  <div class="top-actions"><button type="button" class="theme-toggle" data-theme-toggle aria-label="Cambiar tema">☾</button><a class="btn btn-secondary" href="/api/facturas/pdf">Descargar PDF ↗</a><a class="btn btn-secondary" href="/api/facturas/excel">Exportar Excel ↓</a><button type="button" class="btn btn-primary" id="btn-nueva-factura">＋ Nueva factura</button></div>
 </div></header>
 <main class="container">
   <div class="page-head"><div><p class="eyebrow">Panel de control</p><h1>Facturas de venta</h1><p class="subtitle">Consultá, filtrá y administrá las facturas de tu sistema.</p></div><div id="api-status" class="muted">Conectando con el backend…</div></div>

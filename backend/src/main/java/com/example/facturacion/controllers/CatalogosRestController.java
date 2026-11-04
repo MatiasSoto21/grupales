@@ -57,9 +57,9 @@ public class CatalogosRestController {
             puntos.add(item);
         }
 
-        // Si un artículo tiene más de un registro de precio, el frontend recibe uno solo por artículo.
         List<ListaPrecioArticulo> precios = em.createQuery(
-                "SELECT l FROM ListaPrecioArticulo l JOIN FETCH l.articulo ORDER BY l.id", ListaPrecioArticulo.class
+                "SELECT l FROM ListaPrecioArticulo l JOIN FETCH l.articulo JOIN FETCH l.listaPrecio ORDER BY l.articulo.denominacion, l.listaPrecio.denominacion, l.id",
+                ListaPrecioArticulo.class
         ).getResultList();
         Map<Long, Map<String, Object>> articulosUnicos = new LinkedHashMap<>();
         for (ListaPrecioArticulo l : precios) {
@@ -69,9 +69,19 @@ public class CatalogosRestController {
                 item.put("id", articuloId);
                 item.put("codigo", l.getArticulo().getCodigo());
                 item.put("denominacion", l.getArticulo().getDenominacion());
-                item.put("precioVenta", l.getPrecioVenta());
+                item.put("precios", new ArrayList<Map<String, Object>>());
                 articulosUnicos.put(articuloId, item);
             }
+
+            Map<String, Object> precio = new LinkedHashMap<>();
+            precio.put("id", l.getId());
+            precio.put("listaPrecioId", l.getListaPrecio().getId());
+            precio.put("listaPrecioDenominacion", l.getListaPrecio().getDenominacion());
+            precio.put("precioVenta", l.getPrecioVenta());
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> preciosArticulo =
+                    (List<Map<String, Object>>) articulosUnicos.get(articuloId).get("precios");
+            preciosArticulo.add(precio);
         }
 
         resultado.put("clientes", clientes);

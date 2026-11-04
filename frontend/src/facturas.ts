@@ -1,5 +1,5 @@
 import { anularFactura, getCatalogos, getFacturas, reactivarFactura, FACTURAS_API } from './api.js';
-import { byId, clearAlert, currency, makeOption, showAlert } from './dom.js';
+import { byId, clearAlert, currency, initTheme, makeOption, showAlert } from './dom.js';
 import type { Catalogos, FacturaResumen, PageResponse } from './types.js';
 
 const tbody = byId<HTMLTableSectionElement>('facturas-tbody');
@@ -11,6 +11,8 @@ let sortBy: 'numero' | 'fechaEmision' | 'total' = 'fechaEmision';
 let sortDir: 'asc' | 'desc' = 'desc';
 let loadRequestId = 0;
 const PAGE_SIZE = 10;
+
+initTheme();
 
 function formatDate(value: string | null | undefined): string {
   if (!value) return '—';
@@ -125,6 +127,7 @@ function statusPill(status: string | null | undefined): string {
   let className = 'pill';
   if (value === 'ANULADA') className += ' pill-anulada';
   else if (value === 'PAGADA') className += ' pill-pagada';
+  else if (value === 'PENDIENTE') className += ' pill-pendiente';
   return `<span class="${className}">${escapeHtml(value)}</span>`;
 }
 

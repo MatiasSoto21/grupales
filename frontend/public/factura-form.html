@@ -1,7 +1,7 @@
 <!doctype html>
-<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Factura | Formulario</title><link rel="stylesheet" href="/app.css"></head>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Factura | Formulario</title><script>try{const savedTheme=localStorage.getItem('facturacion-theme');const theme=savedTheme==='light'||savedTheme==='dark'?savedTheme:(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.dataset.theme=theme}catch(_){}</script><link rel="stylesheet" href="/app.css"></head>
 <body>
-<header class="topbar"><div class="topbar-inner"><a class="brand" href="/"><span class="brand-mark">▤</span><span>Facturación<small>Gestión de ventas</small></span></a><a class="btn btn-secondary" href="/">← Volver al listado</a></div></header>
+<header class="topbar"><div class="topbar-inner"><a class="brand" href="/"><span class="brand-mark">▤</span><span>Facturación<small>Gestión de ventas</small></span></a><div class="top-actions"><button type="button" class="theme-toggle" data-theme-toggle aria-label="Cambiar tema">☾</button><a class="btn btn-secondary" href="/">← Volver al listado</a></div></div></header>
 <main class="container">
   <div class="page-head"><div><p class="eyebrow" id="modo-label">Nueva operación</p><h1 id="titulo">Nueva factura</h1></div></div>
   <div id="alerta" class="alert hidden"></div>
@@ -29,7 +29,7 @@
       <div id="reactivacion-field" class="field span-3 hidden"><label for="estado-reactivacion">Nuevo estado</label><select id="estado-reactivacion"><option value="">Seleccionar estado</option><option value="EMITIDA">EMITIDA</option><option value="PENDIENTE">PENDIENTE</option><option value="PAGADA">PAGADA</option></select></div>
             <div class="field span-2"><label for="observaciones">Observaciones</label><input type="text" id="observaciones" maxlength="500"></div>
     </div></div></section>
-    <section class="card"><div class="card-head"><div><h2>Productos / ítems</h2></div><button type="button" class="btn btn-success btn-small" id="btn-agregar">＋ Agregar producto</button></div><div class="table-wrap"><table class="table line-table"><thead><tr><th>Artículo</th><th>Cantidad</th><th>Bonificación %</th><th class="text-right">Precio unitario</th><th class="text-right">Subtotal</th><th></th></tr></thead><tbody id="detalles-tbody"></tbody></table></div><div class="card-body"><div class="total-panel"><div class="total-row"><span>Subtotal neto</span><strong id="neto-total">$ 0,00</strong></div><div class="total-row"><span>IVA (21%)</span><strong id="iva-total">$ 0,00</strong></div><div class="total-row final"><span>Total</span><strong id="total-final">$ 0,00</strong></div></div></div></section>
+    <section class="card"><div class="card-head"><div><h2>Productos / ítems</h2></div><button type="button" class="btn btn-success btn-small" id="btn-agregar">＋ Agregar producto</button></div><div class="table-wrap"><table class="table line-table"><thead><tr><th>Artículo</th><th>Lista / precio</th><th>Cantidad</th><th>Bonificación %</th><th class="text-right">Precio unitario</th><th class="text-right">Subtotal</th><th></th></tr></thead><tbody id="detalles-tbody"></tbody></table></div><div class="card-body"><div class="total-panel"><div class="total-row"><span>Subtotal neto</span><strong id="neto-total">$ 0,00</strong></div><div class="total-row"><span>IVA (21%)</span><strong id="iva-total">$ 0,00</strong></div><div class="total-row final"><span>Total</span><strong id="total-final">$ 0,00</strong></div></div></div></section>
     <div class="form-actions"><button type="button" class="btn btn-secondary" id="btn-cancelar-factura">Cancelar</button><div class="form-actions-right"><button type="submit" id="btn-guardar" class="btn btn-primary">Guardar factura</button></div></div>
   </form>
 </main>
@@ -37,6 +37,7 @@
   <div class="modal-header"><div><p class="eyebrow">Productos</p><h2 id="producto-modal-title">Agregar producto</h2></div><button type="button" id="btn-cerrar-producto" class="modal-close" aria-label="Cerrar ventana">×</button></div>
   <form id="producto-form" class="product-modal-body">
     <div class="field"><label for="producto-articulo">Artículo <span class="required">*</span></label><select id="producto-articulo" required><option value="">Seleccionar</option></select></div>
+    <div class="field"><label for="producto-precio">Precio de venta <span class="required">*</span></label><select id="producto-precio" required><option value="">Seleccionar artículo primero</option></select></div>
     <div class="product-modal-grid">
       <div class="field"><label for="producto-cantidad">Cantidad <span class="required">*</span></label><input type="number" id="producto-cantidad" min="1" step="1" value="1" required></div>
       <div class="field"><label for="producto-bonificacion">Bonificación %</label><input type="number" id="producto-bonificacion" min="0" max="100" step="0.01" value="0"></div>

@@ -1,5 +1,5 @@
 import { crearCliente, getCatalogos, getFactura, getSiguienteNumeroFactura, guardarFactura } from './api.js';
-import { byId, clearAlert, currency, makeOption, showAlert } from './dom.js';
+import { byId, clearAlert, currency, initTheme, makeOption, showAlert } from './dom.js';
 const API_URL = 'http://localhost:8080/api/facturas';
 const params = new URLSearchParams(window.location.search);
 const idParam = params.get('id');
@@ -10,12 +10,22 @@ let lineas = [];
 let estadoActual = 'EMITIDA';
 let guardando = false;
 let creandoCliente = false;
+initTheme();
 function articleById(id) {
     return (catalogos?.articulos ?? []).find(article => String(article.id) === String(id));
+}
+function priceById(id) {
+    return (catalogos?.articulos ?? [])
+        .flatMap(article => article.precios ?? [])
+        .find(price => String(price.id) === String(id));
+}
+function linePrice(line) {
+    return Number(priceById(line.listaPrecioArticuloId)?.precioVenta ?? 0);
 }
 function createLine(detail = {}) {
     return {
         articuloId: detail.articuloId ?? undefined,
+        listaPrecioArticuloId: detail.listaPrecioArticuloId ?? undefined,
         descripcion: detail.descripcion ?? '',
         cantidad: Number(detail.cantidad ?? 1),
         porcentajeBonificacion: Number(detail.porcentajeBonificacion ?? 0)
@@ -97,7 +107,7 @@ async function saveNewClient() {
     }
 }
 function calculateSubtotal(line) {
-    const price = Number(articleById(line.articuloId)?.precioVenta ?? 0);
+    const price = linePrice(line);
     return price * Number(line.cantidad || 0) * (1 - Number(line.porcentajeBonificacion || 0) / 100);
 }
 function updateTotals() {
@@ -110,10 +120,10 @@ function updateTotals() {
         const line = lineas[index];
         if (!line)
             return;
-        if (row.cells[3])
-            row.cells[3].textContent = currency(articleById(line.articuloId)?.precioVenta ?? 0);
         if (row.cells[4])
-            row.cells[4].textContent = currency(calculateSubtotal(line));
+            row.cells[4].textContent = currency(linePrice(line));
+        if (row.cells[5])
+            row.cells[5].textContent = currency(calculateSubtotal(line));
     });
 }
 function renderLines() {
@@ -123,7 +133,7 @@ function renderLines() {
         return;
     if (lineas.length === 0) {
         const row = document.createElement('tr');
-        row.innerHTML = '<td colspan="6" class="loading">Agregá al menos un producto para continuar.</td>';
+        row.innerHTML = '<td colspan="7" class="loading">Agregá al menos un producto para continuar.</td>';
         tableBody.append(row);
         updateTotals();
         return;
@@ -142,9 +152,24 @@ function renderLines() {
         articleSelect.addEventListener('change', () => {
             line.articuloId = articleSelect.value ? Number(articleSelect.value) : undefined;
             line.descripcion = articleById(articleSelect.value)?.denominacion ?? '';
-            updateTotals();
+            line.listaPrecioArticuloId = articleById(articleSelect.value)?.precios?.[0]?.id;
+            renderLines();
         });
         articleCell.append(articleSelect);
+        const priceCell = document.createElement('td');
+        const priceSelect = document.createElement('select');
+        priceSelect.className = 'price-select';
+        priceSelect.required = true;
+        priceSelect.append(makeOption('', 'Seleccionar precio'));
+        for (const price of articleById(line.articuloId)?.precios ?? []) {
+            priceSelect.append(makeOption(price.id, `${price.listaPrecioDenominacion} · ${currency(price.precioVenta)}`));
+        }
+        priceSelect.value = line.listaPrecioArticuloId == null ? '' : String(line.listaPrecioArticuloId);
+        priceSelect.addEventListener('change', () => {
+            line.listaPrecioArticuloId = priceSelect.value ? Number(priceSelect.value) : undefined;
+            updateTotals();
+        });
+        priceCell.append(priceSelect);
         const quantityCell = document.createElement('td');
         const quantity = document.createElement('input');
         quantity.className = 'qty-input';
@@ -168,9 +193,9 @@ function renderLines() {
             updateTotals();
         });
         discountCell.append(discount);
-        const priceCell = document.createElement('td');
-        priceCell.className = 'text-right';
-        priceCell.textContent = currency(articleById(line.articuloId)?.precioVenta ?? 0);
+        const unitPriceCell = document.createElement('td');
+        unitPriceCell.className = 'text-right';
+        unitPriceCell.textContent = currency(linePrice(line));
         const subtotalCell = document.createElement('td');
         subtotalCell.className = 'text-right';
         subtotalCell.textContent = currency(calculateSubtotal(line));
@@ -181,7 +206,7 @@ function renderLines() {
         removeButton.textContent = 'Quitar';
         removeButton.addEventListener('click', () => { lineas.splice(index, 1); renderLines(); });
         actionsCell.append(removeButton);
-        row.append(articleCell, quantityCell, discountCell, priceCell, subtotalCell, actionsCell);
+        row.append(articleCell, priceCell, quantityCell, discountCell, unitPriceCell, subtotalCell, actionsCell);
         tableBody.append(row);
     });
     updateTotals();
@@ -216,6 +241,7 @@ async function loadInvoiceForEdit(id) {
 function readForm() {
     const details = lineas.map(line => ({
         articuloId: Number(line.articuloId),
+        listaPrecioArticuloId: Number(line.listaPrecioArticuloId),
         descripcion: line.descripcion || articleById(line.articuloId)?.denominacion || '',
         cantidad: Number(line.cantidad),
         porcentajeBonificacion: Number(line.porcentajeBonificacion || 0)
@@ -243,11 +269,22 @@ function updateProductPreview() {
     const productId = byId('producto-articulo').value;
     const quantity = Number(byId('producto-cantidad').value || 0);
     const discount = Number(byId('producto-bonificacion').value || 0);
-    const price = Number(articleById(productId)?.precioVenta ?? 0);
+    const priceId = byId('producto-precio').value;
+    const price = Number(priceById(priceId)?.precioVenta ?? 0);
     byId('producto-subtotal').textContent = currency(price * quantity * (1 - discount / 100));
+}
+function updateProductPriceOptions() {
+    const productId = byId('producto-articulo').value;
+    const priceSelect = byId('producto-precio');
+    priceSelect.replaceChildren(makeOption('', 'Seleccionar'));
+    for (const price of articleById(productId)?.precios ?? []) {
+        priceSelect.append(makeOption(price.id, `${price.listaPrecioDenominacion} · ${currency(price.precioVenta)}`));
+    }
+    updateProductPreview();
 }
 byId('btn-agregar').addEventListener('click', () => {
     byId('producto-articulo').value = '';
+    byId('producto-precio').replaceChildren(makeOption('', 'Seleccionar artículo primero'));
     byId('producto-cantidad').value = '1';
     byId('producto-bonificacion').value = '0';
     updateProductPreview();
@@ -256,15 +293,17 @@ byId('btn-agregar').addEventListener('click', () => {
 });
 byId('btn-cerrar-producto').addEventListener('click', closeProductModal);
 byId('btn-cancelar-producto').addEventListener('click', closeProductModal);
-for (const id of ['producto-articulo', 'producto-cantidad', 'producto-bonificacion']) {
+for (const id of ['producto-precio', 'producto-cantidad', 'producto-bonificacion']) {
     byId(id).addEventListener('input', updateProductPreview);
 }
+byId('producto-articulo').addEventListener('change', updateProductPriceOptions);
 byId('producto-form').addEventListener('submit', event => {
     event.preventDefault();
     const productId = byId('producto-articulo').value;
+    const priceId = byId('producto-precio').value;
     const quantity = Number(byId('producto-cantidad').value);
     const discount = Number(byId('producto-bonificacion').value || 0);
-    if (!productId || !Number.isInteger(quantity) || quantity < 1) {
+    if (!productId || !priceId || !Number.isInteger(quantity) || quantity < 1) {
         showAlert('Datos de producto incompletos.');
         return;
     }
@@ -274,6 +313,7 @@ byId('producto-form').addEventListener('submit', event => {
     }
     lineas.push({
         articuloId: Number(productId),
+        listaPrecioArticuloId: Number(priceId),
         descripcion: articleById(productId)?.denominacion ?? '',
         cantidad: quantity,
         porcentajeBonificacion: discount
@@ -310,7 +350,8 @@ byId('factura-form').addEventListener('submit', async (event) => {
         showAlert('Agregá al menos un producto.');
         return;
     }
-    if (body.detalles.some(detail => !detail.articuloId || !Number.isInteger(detail.cantidad) || detail.cantidad < 1)) {
+    if (body.detalles.some(detail => !detail.articuloId || !detail.listaPrecioArticuloId
+        || !Number.isInteger(detail.cantidad) || detail.cantidad < 1)) {
         showAlert('Hay productos incompletos.');
         return;
     }

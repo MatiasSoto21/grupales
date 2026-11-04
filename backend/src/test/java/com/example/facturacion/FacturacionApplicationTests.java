@@ -58,6 +58,14 @@ class FacturacionApplicationTests {
 	}
 
 	@Test
+	void catalogReturnsMultiplePricesForArticles() throws Exception {
+		mockMvc.perform(get("/api/catalogos"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.articulos").isArray())
+				.andExpect(jsonPath("$.articulos[0].precios").isArray());
+	}
+
+	@Test
 	void invoiceSortingRejectsInvalidParameters() throws Exception {
 		mockMvc.perform(get("/api/facturas")
 				.param("sortBy", "cliente")
@@ -125,6 +133,7 @@ class FacturacionApplicationTests {
 				"Prueba de contrato REST",
 				List.of(new FacturaDetalleRequestDTO(
 						existing.getDetalles().get(0).getListaPrecioArticulo().getArticulo().getId(),
+						existing.getDetalles().get(0).getListaPrecioArticulo().getId(),
 						"Detalle de prueba",
 						1,
 						0)));
@@ -251,6 +260,7 @@ class FacturacionApplicationTests {
 				"Prueba de numeración",
 				List.of(new FacturaDetalleRequestDTO(
 					existing.getDetalles().get(0).getListaPrecioArticulo().getArticulo().getId(),
+					existing.getDetalles().get(0).getListaPrecioArticulo().getId(),
 					"Detalle de numeración",
 					1,
 					0)));
@@ -322,6 +332,7 @@ class FacturacionApplicationTests {
 				.orElseThrow();
 		FacturaDetalleRequestDTO detail = new FacturaDetalleRequestDTO(
 				existing.getDetalles().get(0).getListaPrecioArticulo().getArticulo().getId(),
+				existing.getDetalles().get(0).getListaPrecioArticulo().getId(),
 				"Cantidad fraccionaria",
 				1.5,
 				0);

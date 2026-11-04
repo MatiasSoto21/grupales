@@ -10,5 +10,5 @@ import java.util.Optional;
 public interface ListaPrecioArticuloRepository
         extends JpaRepository<ListaPrecioArticulo, Long> {
 
-    Optional<ListaPrecioArticulo> findFirstByArticulo_Id(Long articuloId);
+        Optional<ListaPrecioArticulo> findByArticulo_IdAndListaPrecio_Id(Long articuloId, Long listaPrecioId);
 }

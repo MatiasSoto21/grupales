@@ -12,6 +12,7 @@ import lombok.Setter;
 public class FacturaDetalleRequestDTO {
 
     private Long articuloId;
+    private Long listaPrecioArticuloId;
     private String descripcion;
     private double cantidad;
     private double porcentajeBonificacion;

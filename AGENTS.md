@@ -81,6 +81,19 @@ getFacturas('', {
 - Preserve invoice draft state when the client modal is closed or a new client is selected.
 - Product entries are created through the product modal; validate article, positive integer quantity and discount before adding the line.
 
+## Theme interaction
+- The frontend supports light and dark modes using `data-theme` on the root element.
+- The selected theme is persisted in `localStorage` and shared by the listing and invoice form.
+- Theme controls must use native buttons and keep the same icon/action in the listing, standalone form and nested modals.
+- Keep visual colors in the shared CSS variables; use accessible contrast for text, controls, tables, states and modal surfaces.
+
+## Product price lists
+- `Articulo` is the product; `ListaPrecio` groups sale-price variants, and `ListaPrecioArticulo` connects each article to a list and stores `precioVenta`.
+- Invoice details must send `articuloId` and the exact `listaPrecioArticuloId`; the frontend must not send or treat an arbitrary price as authoritative.
+- The catalog returns all configured prices for each article; no article should be listed without at least one price.
+- Creation and editing resolve the selected `ListaPrecioArticulo`, validate that it belongs to the article and has a finite positive price, then persist the unit price in `FacturaVentaDetalle`.
+- Editing recalculates totals from the selected price but existing invoice detail values remain historical and are not replaced by later price updates.
+
 ## Backend (Java)
 - **Build**: `.\mvnw.cmd clean package`
 - **Test**: `.\mvnw.cmd test` (downloads dependencies first time)

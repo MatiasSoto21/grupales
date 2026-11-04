@@ -20,6 +20,10 @@ Memoria del proyecto entre sesiones. Maximo 50 lineas: resume o elimina lo que y
 - Reactivar una factura limpia la fecha de anulación/baja y el usuario de baja; la acción directa restablece `EMITIDA`.
 - El alta de cliente desde factura persiste contacto, domicilio y auditoría en una transacción; CUIT/CUIL duplicado devuelve conflicto.
 - Las cantidades de ítems se validan como enteros positivos en UI y servicio; los filtros inválidos de fecha, comprobante e importe se validan antes de buscar o exportar.
+- Los artículos manejan precios mediante `ListaPrecioArticulo`: Minorista y Mayorista son ejemplos iniciales cargados por el `DataInitializer`.
+- Cada línea de factura conserva el ID de `ListaPrecioArticulo` seleccionado; al editar se recalcula usando ese precio, sin permitir que el frontend envíe precios arbitrarios.
+- La interfaz permite cambiar entre modo claro y oscuro desde el encabezado; la preferencia se conserva en `localStorage`.
+- La interfaz usa una paleta visual compartida de alto contraste y superficies consistentes para tarjetas, tablas, formularios y modales en ambos temas.
 
 ## Aprendizajes y errores a evitar
 - Validar que el límite inferior del rango de comprobantes no supere al límite superior.

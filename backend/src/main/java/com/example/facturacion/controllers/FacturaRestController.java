@@ -165,6 +165,7 @@ public class FacturaRestController {
                         .map(d -> new FacturaDetalleRequestDTO(
                                 d.getListaPrecioArticulo()
                                         .getArticulo().getId(),
+                                d.getListaPrecioArticulo().getId(),
                                 d.getDescripcion(),
                                 d.getCantidad(),
                                 d.getPorcentajeBonificacion()))

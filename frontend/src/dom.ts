@@ -24,3 +24,32 @@ export function makeOption(value: string | number, label: string): HTMLOptionEle
   option.textContent = label;
   return option;
 }
+
+export function initTheme(): void {
+  const storageKey = 'facturacion-theme';
+  const storedTheme = localStorage.getItem(storageKey);
+  const initialTheme: 'light' | 'dark' =
+    storedTheme === 'dark' || storedTheme === 'light'
+      ? storedTheme
+      : (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+
+  const applyTheme = (theme: 'light' | 'dark'): void => {
+    document.documentElement.dataset.theme = theme;
+    document.querySelectorAll<HTMLButtonElement>('[data-theme-toggle]').forEach(button => {
+      const isDark = theme === 'dark';
+      button.setAttribute('aria-label', isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro');
+      button.setAttribute('title', isDark ? 'Modo claro' : 'Modo oscuro');
+      button.textContent = isDark ? '☀' : '☾';
+    });
+  };
+
+  applyTheme(initialTheme);
+  document.querySelectorAll<HTMLButtonElement>('[data-theme-toggle]').forEach(button => {
+    button.addEventListener('click', () => {
+      const nextTheme: 'light' | 'dark' =
+        document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+      localStorage.setItem(storageKey, nextTheme);
+      applyTheme(nextTheme);
+    });
+  });
+}

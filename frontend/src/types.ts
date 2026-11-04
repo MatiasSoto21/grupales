@@ -43,6 +43,13 @@ export interface ArticuloCatalogo {
   id: number;
   codigo?: string | number;
   denominacion: string;
+  precios: PrecioArticuloCatalogo[];
+}
+
+export interface PrecioArticuloCatalogo {
+  id: number;
+  listaPrecioId: number;
+  listaPrecioDenominacion: string;
   precioVenta: number;
 }
 
@@ -74,6 +81,7 @@ export interface Catalogos {
 
 export interface FacturaDetalleRequestDTO {
   articuloId: number;
+  listaPrecioArticuloId: number;
   descripcion: string;
   cantidad: number;
   porcentajeBonificacion: number;
@@ -84,6 +92,7 @@ export type DetalleRequest = FacturaDetalleRequestDTO;
 export interface DetalleFactura {
   id?: number;
   articuloId?: number;
+  listaPrecioArticuloId?: number;
   descripcion: string;
   cantidad: number;
   porcentajeBonificacion: number;
