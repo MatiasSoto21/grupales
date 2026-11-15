@@ -161,7 +161,7 @@ getFacturas('', {
 - Only confirmed authorization yields AUTORIZADA, a real homologation CAE and, with a complete issuer snapshot, a matching PDF verification QR. Every document remains SIN VALIDEZ FISCAL.
 - Preserve receptorPrueba only for legacy records and their original fiscal snapshots. New invoices always store false. Never rewrite historical authorizations or seeded invoices.
 - Writing browser tests are opt-in with RUN_WRITING_TESTS=1. They verify an explicit rejection for a fictional CUIT and a separate authorized consumer-final purchase. Never automatically reissue after an ambiguous failure.
-- See FUNCIONAMIENTO-ARCA.md for execution and demonstration scenarios.
+- See README.md for setup and test execution. Personal demonstration guides remain local and are not repository dependencies.
 
 ## Internal X documents
 - The same form supports fiscal A/B or an explicit internal X document. X is never a fallback for an ARCA rejection.
@@ -290,5 +290,10 @@ getFacturas('', {
 ## Publication and local configuration
 - The repository is https://github.com/MatiasSoto21/grupales; publish the reviewed source to main without force-pushing or changing unrelated repositories. Verify the Git root before staging: extracted project copies may inherit a Desktop Git repository.
 - Never commit PostgreSQL passwords, private ARCA keys, local certificates/configuration, WSAA tickets, node_modules, target, dist, logs or test artifacts. Keep db-local.properties ignored; application.properties accepts DB_PASSWORD.
-- Version .vscode/settings.json for the agreed editor preferences: null annotation analysis disabled, constructor/repository recommendations ignored, version notifications off. These preferences do not change the model or dependencies.
+- Keep .vscode/settings.json local and ignored. Its agreed preferences disable null annotation analysis and hide constructor/repository/version recommendations; they do not change the model or dependencies.
 - Last frontend validation (2026-11-14): npm test passed 7 checks; npm run test:e2e -- invoices.spec.ts passed 64 browser scenarios. Saves/emissions use intercepted responses. Read-only API checks covered catalogs, pagination, invalid filters and PDF/Excel; no real invoice was emitted in this validation.
+
+## Repository content
+- Track application sources, tests, build/dependency manifests and lockfiles, Maven wrappers, README.md, AGENTS.md and frontend/INSTRUCCIONES.md. Keep .gitignore and .gitattributes versioned.
+- FUNCIONAMIENTO-ARCA.md, GUIA-EXPOSICION.md, MEMORY.md, prueba.http and .vscode settings are personal local files: keep them on disk and ignored, and do not link to them from published documentation.
+- Remove accidentally tracked local files with git rm --cached, preserving their working copies. Publish cleanup commits normally; do not force-push or rewrite history.

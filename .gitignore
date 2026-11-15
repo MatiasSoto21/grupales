@@ -30,8 +30,7 @@ build/
 !**/src/test/**/build/
 
 ### VS Code ###
-.vscode/*
-!.vscode/settings.json
+.vscode/
 
 ### Credenciales locales y salidas de consola ###
 src/main/resources/db-local.properties
@@ -57,3 +56,9 @@ playwright-report/
 *.pfx
 /backend/src/main/resources/certificado_test.crt
 /backend/config/
+
+### Documentacion y herramientas personales ###
+/FUNCIONAMIENTO-ARCA.md
+/GUIA-EXPOSICION.md
+/MEMORY.md
+/prueba.http

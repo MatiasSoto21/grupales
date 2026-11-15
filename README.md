@@ -4,8 +4,6 @@ Aplicación con Java 21, Spring Boot, PostgreSQL y frontend HTML/CSS/TypeScript 
 
 ## Documentación
 
-- [Funcionamiento de ARCA y reglas de los comprobantes](FUNCIONAMIENTO-ARCA.md).
-- [Guion de exposición, mapa del código y defensa](GUIA-EXPOSICION.md).
 - [Guía de mantenimiento del repositorio](AGENTS.md).
 
 ## Preparar otra computadora
@@ -115,7 +113,7 @@ Conservar:
 
 - backend/ y frontend/ con sus fuentes, configuración general y pruebas.
 - Los wrappers Maven y las carpetas .mvn que correspondan al proyecto.
-- pom.xml, los package.json y package-lock.json, configuraciones y los cuatro Markdown principales.
+- pom.xml, los package.json y package-lock.json, configuraciones, README.md y AGENTS.md.
 - Las credenciales de homologación, si se autoriza utilizarlas en la otra PC; si se excluyen, quien reciba el ZIP debe aportar las suyas y configurar las rutas.
 
 Excluir del ZIP:
@@ -144,7 +142,7 @@ Si ambos equipos usan la misma identidad fiscal de homologación, comparten el m
 
 1. Ver el listado y confirmar la conexión con el backend.
 2. Crear un X con un producto y abrir su PDF.
-3. Revisar los escenarios A/B del documento FUNCIONAMIENTO-ARCA.md.
+3. Para A/B, configurar las credenciales locales de homologacion y revisar cliente, IVA, punto de venta, productos y fechas antes de confirmar la emision.
 4. Para una demostración fiscal, utilizar un punto habilitado y datos compatibles; los CUIT ficticios de los clientes de muestra no garantizan autorización.
 
 ## Pruebas opcionales
@@ -162,7 +160,7 @@ Las pruebas de navegador requieren el navegador de Playwright. Para instalarlo e
 
     npx playwright install chromium
 
-Las pruebas ordinarias no emiten nuevos comprobantes en ARCA. Los recorridos con escritura real requieren habilitación explícita, como se explica en FUNCIONAMIENTO-ARCA.md.
+Las pruebas ordinarias no emiten nuevos comprobantes en ARCA. Los escenarios live.spec.ts requieren RUN_LIVE_TESTS=1. El recorrido full-workflow.spec.ts requiere RUN_WRITING_TESTS=1: crea registros y puede emitir comprobantes reales de homologacion; habilitarlo solo intencionalmente con TEST_BACKEND_URL apuntando al backend elegido.
 
 
 ## Revision de usabilidad (14/11/2026)
@@ -175,4 +173,4 @@ Las pruebas ordinarias no emiten nuevos comprobantes en ARCA. Los recorridos con
 
 Validacion realizada: **7 pruebas de logica/API/proxy y 64 escenarios de navegador aprobados**, incluyendo temas claro/oscuro, movil, respuestas tardias, errores y X a A/B. Ademas se verificaron consultas de lectura del backend, filtros invalidos y archivos PDF/Excel. Los guardados del navegador se probaron con respuestas simuladas; esta revision no emitio comprobantes reales. No se cambiaron el modelo ni las dependencias.
 
-La configuracion compartida de VS Code desactiva el analisis de anotaciones null y las recomendaciones de constructor, @Repository y versiones. Es una preferencia del editor; no actualiza Spring Boot ni elimina sus necesidades de mantenimiento.
+La configuracion de VS Code y las guias personales se conservan localmente y estan excluidas por .gitignore. Las preferencias del editor no modifican el modelo ni las dependencias.

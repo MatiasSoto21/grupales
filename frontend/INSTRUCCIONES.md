@@ -24,6 +24,6 @@ El backend se configura mediante BACKEND_URL y por defecto escucha en http://loc
 
 Ultima validacion: 7 pruebas de logica/API/proxy y 64 escenarios de navegador aprobados el 14/11/2026. Los guardados del navegador se simulan mediante respuestas interceptadas.
 
-Los recorridos contra un backend real son opt-in; RUN_WRITING_TESTS=1 puede crear registros y solicitar autorizaciones de homologacion. No habilitarlo para una comprobacion ordinaria. Ver ../FUNCIONAMIENTO-ARCA.md.
+Los recorridos contra un backend real son opt-in; RUN_WRITING_TESTS=1 puede crear registros y solicitar autorizaciones de homologacion. No habilitarlo para una comprobacion ordinaria. Ver ../README.md.
 
 No se versionan node_modules, dist, reportes Playwright ni evidencia local. npm start compila TypeScript antes de servir la aplicacion.
