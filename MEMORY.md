@@ -1,32 +1,33 @@
 # MEMORY.md - FacturacionApp
 
-Memoria del proyecto entre sesiones. Maximo 50 lineas: resume o elimina lo que ya no aporte.
-
 ## Estado actual
-- v2 implementada: CRUD/reactivación de facturas, alta de cliente desde factura, filtros combinables, paginación, modales de factura/cliente/producto y validación de cantidades enteras.
-- Las nuevas facturas inician sin líneas de producto precargadas.
-- El importe cobrado no es editable ni parcial: siempre coincide con el total calculado y el saldo es cero.
-- Número y fecha de emisión son inmutables desde el formulario: el backend genera ambos al crear; al editar, el payload los conserva y el backend no los modifica. La numeración usa el máximo persistido, incluidas facturas anuladas.
-- La interfaz de facturas se mantiene limpia de textos guía, placeholders explicativos y etiquetas "estimado".
-- El listado ordena por número, fecha o total desde un único botón con modal; el cambio vuelve a la página 1 y solo aplica la respuesta más reciente para evitar rebotes entre solicitudes.
+- Java 21, Spring Boot 3.3.4, PostgreSQL y frontend TypeScript/Express; solo homologacion ARCA.
+- X interno y emision fiscal A/B vinculada; nunca convertir el origen en el mismo registro.
+- ARCA determina numeracion A/B. X usa numeracion local por punto de venta.
+- Solo autorizacion confirmada reemplaza el X en el listado y bloquea su edicion.
+- Rechazos conservan motivo; ERROR_AFIP es incierto y no se reintenta automaticamente.
+- Reactivar recupera el estado respaldado por la evidencia y nunca solicita CAE.
+- Servicios deciden reglas; repositorios hacen consultas, filtros, orden y paginacion.
+- Clientes/articulos/facturas se consultan por paginas de 10; catalogos no descarga colecciones completas.
+- Los codigos publicos de articulos son numeroCatalogo, consecutivos; BEB es una clave interna.
+- Cantidades enteras positivas, precios autoritativos y fechas de negocio del backend.
+- Fechas del origen inmutables; emision vinculada admite fechas validadas sin reescribir el X.
 
-## Decisiones y por que
-- Mantener el proyecto con Java 21 respetando el AGENTS.md.
-- Mantener el formulario en `factura-form.html`, pero abrirlo como modal desde el listado sin abandonar la página principal.
-- Usar modales para crear clientes y agregar productos, además de confirmaciones modales para anular/reactivar.
-- Para la API REST, los datos inválidos de factura responden 400 y las operaciones sobre facturas inexistentes responden 404.
-- Los filtros de cliente y comprobante usan query parameters REST; `sinCliente=true` cubre la relación opcional nula.
-- Listado paginado y exportaciones consumen los mismos filtros; las exportaciones no se limitan a la página actual.
-- Reactivar una factura limpia la fecha de anulación/baja y el usuario de baja; la acción directa restablece `EMITIDA`.
-- El alta de cliente desde factura persiste contacto, domicilio y auditoría en una transacción; CUIT/CUIL duplicado devuelve conflicto.
-- Las cantidades de ítems se validan como enteros positivos en UI y servicio; los filtros inválidos de fecha, comprobante e importe se validan antes de buscar o exportar.
-- Los artículos manejan precios mediante `ListaPrecioArticulo`: Minorista y Mayorista son ejemplos iniciales cargados por el `DataInitializer`.
-- Cada línea de factura conserva el ID de `ListaPrecioArticulo` seleccionado; al editar se recalcula usando ese precio, sin permitir que el frontend envíe precios arbitrarios.
-- La interfaz permite cambiar entre modo claro y oscuro desde el encabezado; la preferencia se conserva en `localStorage`.
-- La interfaz usa una paleta visual compartida de alto contraste y superficies consistentes para tarjetas, tablas, formularios y modales en ambos temas.
+## Usabilidad
+- Guardar revela y enfoca el aviso; la confirmacion sobrevive al cierre/navegacion al listado.
+- Errores conservan borradores; previews tardios no reemplazan resultados ni errores del guardado.
+- Cargas/guardados bloquean controles y restauran restricciones al finalizar.
+- Selectores deshabilitados sin flecha; X a A/B habilita fechas y punto de venta.
+- La fecha fiscal manual no se reemplaza al cambiar la fecha de operacion.
+- Anular/reactivar impiden dobles solicitudes. Resultados vacios: pagina 0 de 0.
 
-## Aprendizajes y errores a evitar
-- Validar que el límite inferior del rango de comprobantes no supere al límite superior.
-
-## Proximos pasos
-- Revisar validación formal del CUIT/CUIL y los flujos de cliente si el alta evoluciona a gestión completa.
+## Validacion y publicacion
+- 2026-11-14: npm test, 7 aprobados; invoices.spec.ts, 64 escenarios aprobados.
+- Guardados/emisiones de navegador simulados; API real verificada solo con lecturas y reportes.
+- No se volvio a ejecutar la suite Java en la ultima revision de usabilidad.
+- Repositorio: https://github.com/MatiasSoto21/grupales; destino main, sin force push.
+- Verificar Git root antes de operar; las copias extraidas pueden heredar un repositorio del Escritorio.
+- No publicar claves, certificados locales, contrasenas, tickets WSAA ni artefactos compilados.
+- PostgreSQL: DB_PASSWORD o db-local.properties ignorado. ARCA: credenciales locales.
+- VS Code mantiene desactivado null analysis y oculta recomendaciones de inyeccion/repositorios/versiones; no cambia el modelo ni las dependencias.
+- README.md, AGENTS.md y FUNCIONAMIENTO-ARCA.md contienen las reglas detalladas.

@@ -20,6 +20,9 @@ public class Articulo extends AuditoriaApp {
     @Column(nullable = false)
     private String codigo;
 
+    @Column(unique = true)
+    private Long numeroCatalogo;
+
     @Column(nullable = false)
     private String denominacion;
 

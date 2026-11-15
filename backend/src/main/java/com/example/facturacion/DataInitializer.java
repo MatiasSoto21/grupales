@@ -1,7 +1,7 @@
 package com.example.facturacion;
 
 import com.example.facturacion.entities.*;
-import com.example.facturacion.services.ConsultasService;
+import com.example.facturacion.repositories.ConsultasRepository;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import org.springframework.boot.CommandLineRunner;
@@ -18,6 +18,21 @@ public class DataInitializer implements CommandLineRunner {
 
     @PersistenceContext
     private EntityManager em;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    private ConsultasRepository consultasRepository;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.example.facturacion.repositories.FacturaVentaConsultasRepository consultasFactura;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.example.facturacion.repositories.ArticuloRepository articulosRepository;
+
+    private void normalizarEstadosFiscales() {
+        // Repair the former reactivation bug using confirmed fiscal evidence only.
+        em.createQuery("UPDATE FacturaVenta f SET f.estado = 'AUTORIZADA' WHERE f.estado = 'EMITIDA' AND f.resultadoAfip = 'A' AND f.cae IS NOT NULL AND f.cae <> ''").executeUpdate();
+        em.createQuery("UPDATE FacturaVenta f SET f.estado = 'RECHAZADA' WHERE f.estado = 'EMITIDA' AND f.resultadoAfip = 'R' AND (f.cae IS NULL OR f.cae = '')").executeUpdate();
+    }
 
     // =========================================================
     // INICIALIZADOR
@@ -36,6 +51,9 @@ public class DataInitializer implements CommandLineRunner {
                     "Ya existen facturas. Se omite la carga inicial."
             );
             asegurarPreciosEnBaseExistente();
+            asegurarArticulosAdicionales();
+            normalizarEstadosFiscales();
+            consultasFactura.marcarXReemplazadosPorAutorizacionesExistentes();
             return;
         }
 
@@ -477,38 +495,39 @@ public class DataInitializer implements CommandLineRunner {
         // PRUEBAS DE CONSULTAS JPQL
         // =====================================================
 
+        asegurarPreciosEnBaseExistente();
+        asegurarArticulosAdicionales();
+
         List<FacturaVenta> todas =
-                ConsultasService.obtenerTodasLasFacturas(em);
+                consultasRepository.obtenerTodasLasFacturas();
 
         System.out.println("1. Todas las facturas: " + todas.size());
 
         List<Object[]> resumen =
-                ConsultasService.obtenerResumenFacturas(em);
+                consultasRepository.obtenerResumenFacturas();
 
         System.out.println("2. Registros del resumen: " + resumen.size());
 
         List<Articulo> porRubro =
-                ConsultasService.obtenerArticulosPorRubro(em, "Bebidas");
+                consultasRepository.obtenerArticulosPorRubro("Bebidas");
 
         System.out.println("3. Articulos en Bebidas: " + porRubro.size());
 
         List<FacturaVenta> porFecha =
-                ConsultasService.obtenerFacturasPorRangoFechas(
-                        em, hoy.minusDays(3), hoy.plusDays(1)
+                consultasRepository.obtenerFacturasPorRangoFechas(hoy.minusDays(3), hoy.plusDays(1)
                 );
 
         System.out.println("4. Facturas recientes: " + porFecha.size());
 
         List<FacturaVenta> altas =
-                ConsultasService.obtenerFacturasValidasAltas(em, 5000);
+                consultasRepository.obtenerFacturasValidasAltas(5000);
 
         System.out.println(
                 "5. Facturas validas mayores a $5000: " + altas.size()
         );
 
         List<Cliente> encontrados =
-                ConsultasService.buscarClientesPorNombreOCuit(
-                        em, "Perez", "20-"
+                consultasRepository.buscarClientesPorNombreOCuit("Perez", "20-"
                 );
 
         System.out.println(
@@ -516,12 +535,12 @@ public class DataInitializer implements CommandLineRunner {
         );
 
         List<String> estados =
-                ConsultasService.obtenerEstadosFacturasUnicos(em);
+                consultasRepository.obtenerEstadosFacturasUnicos();
 
         System.out.println("7. Estados unicos: " + estados);
 
         Object[] estadisticas =
-                ConsultasService.obtenerEstadisticasFacturasEmitidas(em);
+                consultasRepository.obtenerEstadisticasFacturasEmitidas();
 
         System.out.println(
                 "8. Estadisticas de facturas emitidas: "
@@ -529,8 +548,7 @@ public class DataInitializer implements CommandLineRunner {
         );
 
         List<PuntoVenta> puntos =
-                ConsultasService.obtenerPuntosVentaPorNumeros(
-                        em, Arrays.asList(1, 2, 3)
+                consultasRepository.obtenerPuntosVentaPorNumeros(Arrays.asList(1, 2, 3)
                 );
 
         System.out.println(
@@ -538,27 +556,26 @@ public class DataInitializer implements CommandLineRunner {
         );
 
         List<FacturaVenta> porUsuario =
-                ConsultasService.obtenerFacturasPorUsuarioCarga(em, "admin");
+                consultasRepository.obtenerFacturasPorUsuarioCarga("admin");
 
         System.out.println(
                 "10. Facturas del usuario admin: " + porUsuario.size()
         );
 
         List<FacturaVentaDetalle> detalles =
-                ConsultasService.obtenerDetallesPorNumeroPuntoVenta(em, 1);
+                consultasRepository.obtenerDetallesPorNumeroPuntoVenta(1);
 
         System.out.println("11. Detalles del PV 1: " + detalles.size());
 
         List<Object[]> articulosMarca =
-                ConsultasService.obtenerArticulosConMarca(em);
+                consultasRepository.obtenerArticulosConMarca();
 
         System.out.println(
                 "12. Articulos con marca: " + articulosMarca.size()
         );
 
         List<FacturaVenta> porMarca =
-                ConsultasService.obtenerFacturasPorMarcaArticulo(
-                        em, "Coca Cola"
+                consultasRepository.obtenerFacturasPorMarcaArticulo("Coca Cola"
                 );
 
         System.out.println(
@@ -566,15 +583,14 @@ public class DataInitializer implements CommandLineRunner {
         );
 
         List<FacturaVenta> sobrePromedio =
-                ConsultasService.obtenerFacturasSuperioresAlPromedio(em);
+                consultasRepository.obtenerFacturasSuperioresAlPromedio();
 
         System.out.println(
                 "14. Facturas sobre el promedio: " + sobrePromedio.size()
         );
 
         List<FacturaVenta> porCuit =
-                ConsultasService.obtenerFacturasPorCuitCliente(
-                        em, "20-12345678-9"
+                consultasRepository.obtenerFacturasPorCuitCliente("20-12345678-9"
                 );
 
         System.out.println(
@@ -582,45 +598,45 @@ public class DataInitializer implements CommandLineRunner {
         );
 
         List<Object[]> porPunto =
-                ConsultasService.obtenerResumenFacturacionPorPuntoVenta(em);
+                consultasRepository.obtenerResumenFacturacionPorPuntoVenta();
 
         System.out.println(
                 "16. Resumen por punto de venta: " + porPunto.size()
         );
 
         List<String> usuarios =
-                ConsultasService.obtenerUsuariosConMasDeNFacturas(em, 0);
+                consultasRepository.obtenerUsuariosConMasDeNFacturas(0);
 
         System.out.println("17. Usuarios con facturas: " + usuarios);
 
         List<Object[]> ventasMarca =
-                ConsultasService.obtenerVentasTotalesPorMarca(em);
+                consultasRepository.obtenerVentasTotalesPorMarca();
 
         System.out.println("18. Marcas con ventas: " + ventasMarca.size());
 
         List<Object[]> porIva =
-                ConsultasService.obtenerTotalFacturadoPorCondicionIva(em);
+                consultasRepository.obtenerTotalFacturadoPorCondicionIva();
 
         System.out.println(
                 "19. Resumen por condicion IVA: " + porIva.size()
         );
 
         List<Marca> marcasFacturadas =
-                ConsultasService.obtenerMarcasConArticulosFacturados(em);
+                consultasRepository.obtenerMarcasConArticulosFacturados();
 
         System.out.println(
                 "20. Marcas facturadas: " + marcasFacturadas.size()
         );
 
         List<Articulo> nuncaFacturados =
-                ConsultasService.obtenerArticulosNuncaFacturados(em);
+                consultasRepository.obtenerArticulosNuncaFacturados();
 
         System.out.println(
                 "21. Articulos nunca facturados: " + nuncaFacturados.size()
         );
 
         List<Object[]> categorizadas =
-                ConsultasService.obtenerFacturasCategorizadas(em);
+                consultasRepository.obtenerFacturasCategorizadas();
 
         System.out.println(
                 "22. Facturas categorizadas: " + categorizadas.size()
@@ -696,9 +712,7 @@ public class DataInitializer implements CommandLineRunner {
         } else {
             f.setImporteCobrado(total);
             f.setImporteSaldo(0);
-            f.setCae("7000000000" + numero);
-            f.setCaeFechaVencimiento(fecha.plusDays(10));
-            f.setResultadoAfip("A");
+            f.setResultadoAfip("SIMULADO");
             f.setObservaciones("Factura de prueba");
         }
 
@@ -855,13 +869,12 @@ public class DataInitializer implements CommandLineRunner {
             mayorista = listasMayoristas.get(0);
         }
 
+        var preciosPorArticulo = em.createQuery(
+                "SELECT l FROM ListaPrecioArticulo l JOIN FETCH l.articulo JOIN FETCH l.listaPrecio ORDER BY l.id", ListaPrecioArticulo.class)
+                .getResultStream().collect(java.util.stream.Collectors.groupingBy(l -> l.getArticulo().getId()));
         for (Articulo articulo : em.createQuery(
                 "SELECT a FROM Articulo a ORDER BY a.id", Articulo.class).getResultList()) {
-            List<ListaPrecioArticulo> preciosExistentes = em.createQuery(
-                            "SELECT l FROM ListaPrecioArticulo l WHERE l.articulo = :articulo ORDER BY l.id",
-                            ListaPrecioArticulo.class)
-                    .setParameter("articulo", articulo)
-                    .getResultList();
+            List<ListaPrecioArticulo> preciosExistentes = preciosPorArticulo.getOrDefault(articulo.getId(), List.of());
 
             if (preciosExistentes.isEmpty()) {
                 continue;
@@ -889,6 +902,80 @@ public class DataInitializer implements CommandLineRunner {
             }
         }
         em.flush();
+    }
+
+    public static final int ARTICULOS_ADICIONALES = 1000;
+
+    private void asegurarArticulosAdicionales() {
+        // Serialize creation and the in-place upgrade of the old numbered seed.
+        em.createNativeQuery("SELECT pg_advisory_xact_lock(731004002)").getResultList();
+        var admin = em.createQuery("SELECT u FROM Usuario u WHERE u.usuario = 'admin'", Usuario.class)
+                .getResultStream().findFirst().orElseThrow();
+        var listas = em.createQuery("SELECT l FROM ListaPrecio l WHERE l.codigo IN ('LP01', 'LP02') ORDER BY l.id", ListaPrecio.class).getResultList();
+        var marcas = em.createQuery("SELECT m FROM Marca m ORDER BY m.id", Marca.class).getResultStream()
+                .collect(java.util.stream.Collectors.toMap(m -> m.getDenominacion().toLowerCase(java.util.Locale.ROOT), m -> m, (a, otro) -> a));
+        var rubros = em.createQuery("SELECT r FROM Rubro r ORDER BY r.id", Rubro.class).getResultStream()
+                .collect(java.util.stream.Collectors.toMap(r -> r.getDenominacion().toLowerCase(java.util.Locale.ROOT), r -> r, (a, otro) -> a));
+        int codigoMarca = marcas.values().stream().mapToInt(Marca::getCodigo).max().orElse(0);
+        int codigoRubro = rubros.values().stream().mapToInt(Rubro::getCodigo).max().orElse(0);
+        var existentes = em.createQuery("SELECT a FROM Articulo a WHERE a.codigo LIKE 'DEMO-%' OR a.codigo LIKE 'BEB-%'", Articulo.class)
+                .getResultStream().collect(java.util.stream.Collectors.toMap(Articulo::getCodigo, a -> a, (a, otro) -> a));
+        var pares = em.createQuery("SELECT p FROM ListaPrecioArticulo p JOIN FETCH p.articulo JOIN FETCH p.listaPrecio WHERE p.articulo.codigo LIKE 'DEMO-%' OR p.articulo.codigo LIKE 'BEB-%'", ListaPrecioArticulo.class)
+                .getResultStream().map(p -> p.getArticulo().getId() + ":" + p.getListaPrecio().getId())
+                .collect(java.util.stream.Collectors.toSet());
+        var bebidas = com.example.facturacion.seed.CatalogoBebidas.productos();
+        int creados = 0;
+        for (int i = 0; i < bebidas.size(); i++) {
+            var bebida = bebidas.get(i);
+            String claveMarca = bebida.marca().toLowerCase(java.util.Locale.ROOT);
+            var marca = marcas.get(claveMarca);
+            if (marca == null) { marca = crearMarca(++codigoMarca, bebida.marca(), admin); marcas.put(claveMarca, marca); }
+            String claveRubro = bebida.rubro().toLowerCase(java.util.Locale.ROOT);
+            var rubro = rubros.get(claveRubro);
+            if (rubro == null) { rubro = crearRubro(++codigoRubro, bebida.rubro(), admin); rubros.put(claveRubro, rubro); }
+            Articulo articulo = existentes.get(bebida.codigo());
+            if (articulo == null) {
+                String codigoAnterior = String.format(java.util.Locale.ROOT, "DEMO-%04d", i + 1);
+                articulo = existentes.get(codigoAnterior);
+                if (articulo == null) {
+                    articulo = crearArticulo(bebida.codigo(), bebida.denominacion(), marca, rubro, admin);
+                    em.flush(); // Price-pair keys use the stable article ID, including for newly created products.
+                    creados++;
+                } else {
+                    articulo.setCodigo(bebida.codigo()); articulo.setDenominacion(bebida.denominacion());
+                    articulo.setMarca(marca); articulo.setRubro(rubro);
+                    articulo.setFechaModificacion(LocalDate.now()); articulo.setUsuarioModificacion(admin);
+                }
+            }
+            if (articulo.getDenominacion().equals(bebida.denominacionAnterior())) {
+                articulo.setDenominacion(bebida.denominacion());
+                articulo.setFechaModificacion(LocalDate.now()); articulo.setUsuarioModificacion(admin);
+            }
+            double base = 500 + (i + 1) * 7.5;
+            for (ListaPrecio lista : listas) {
+                if (pares.add(articulo.getId() + ":" + lista.getId())) {
+                    crearPrecio(lista, articulo, "LP02".equals(lista.getCodigo())
+                            ? Math.round(base * 0.9 * 100) / 100.0 : base, admin);
+                }
+            }
+        }
+        // Give the original small catalog explicit brand/flavor names too, without touching saved invoice descriptions.
+        var nombresOriginales = java.util.Map.of("AGUA500", "Villavicencio Sin gas 500 ml",
+                "AGUA1500", "Villavicencio Sin gas 1.5 L", "JUGONAR1L", "Cepita Naranja 1 L",
+                "JUGOMULTI", "Cepita Multifruta 1 L", "ENERG473", "Coca Cola Energy Original 473 ml");
+        for (var articulo : em.createQuery("SELECT a FROM Articulo a WHERE a.codigo IN :codigos", Articulo.class)
+                .setParameter("codigos", nombresOriginales.keySet()).getResultList()) {
+            String anterior = articulo.getDenominacion();
+            if (anterior.startsWith("Agua mineral ") || anterior.startsWith("Jugo de ") || anterior.equals("Jugo multifruta 1 L")
+                    || anterior.startsWith("Bebida energetica ") || anterior.startsWith("Villavicencio Agua mineral ")
+                    || anterior.equals("Cepita Jugo de naranja 1 L") || anterior.equals("Cepita Jugo multifruta 1 L")) {
+                articulo.setDenominacion(nombresOriginales.get(articulo.getCodigo()));
+                articulo.setFechaModificacion(LocalDate.now()); articulo.setUsuarioModificacion(admin);
+            }
+        }
+        em.flush();
+        articulosRepository.asignarNumerosDeCatalogoPendientes();
+        if (creados > 0) System.out.println("Bebidas adicionales creadas: " + creados + " (con precios minorista y mayorista)");
     }
 
     private ListaPrecioArticulo crearPrecio(

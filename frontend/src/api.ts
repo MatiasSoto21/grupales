@@ -1,6 +1,6 @@
-import type { Catalogos, ClienteRequest, FacturaRequest, FacturaResumen, GetFacturasOptions, OpcionCatalogo, PageResponse } from './types.js';
+import type { Catalogos, ClienteCreado, ClienteRequest, FacturaRequest, FacturaResumen, GetFacturasOptions, PageResponse } from './types.js';
 
-export const API_BASE = 'http://localhost:8080/api';
+export const API_BASE = '/api';
 export const FACTURAS_API = `${API_BASE}/facturas`;
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
@@ -10,7 +10,7 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
     let message = raw;
     try {
       const parsed: { message?: string; error?: string; detail?: string } = JSON.parse(raw) as { message?: string; error?: string; detail?: string };
-      message = parsed.message ?? parsed.error ?? parsed.detail ?? raw;
+      message = parsed.detail ?? parsed.message ?? parsed.error ?? raw;
     } catch { /* La respuesta no era JSON. */ }
     throw new Error(message || `Error HTTP ${response.status}`);
   }
@@ -21,6 +21,9 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
 export async function getFacturas(query = '', options?: GetFacturasOptions): Promise<PageResponse<FacturaResumen>> {
   const params = new URLSearchParams(query);
 
+  if (options?.puntoVentaId !== undefined) params.set('puntoVentaId', String(options.puntoVentaId));
+  if (options?.claseDocumento) params.set('claseDocumento', options.claseDocumento);
+  if (options?.incluirVinculados !== undefined) params.set('incluirVinculados', String(options.incluirVinculados));
   if (options?.fechaDesde) params.set('fechaDesde', options.fechaDesde);
   if (options?.fechaHasta) params.set('fechaHasta', options.fechaHasta);
   if (options?.estado) params.set('estado', options.estado);
@@ -38,54 +41,45 @@ export async function getFacturas(query = '', options?: GetFacturasOptions): Pro
   return request<PageResponse<FacturaResumen>>(`${FACTURAS_API}${params.toString() ? '?' + params.toString() : ''}`);
 }
 
-export function getSiguienteNumeroFactura(): Promise<{ numero: number }> {
-  return request<{ numero: number }>(`${FACTURAS_API}/siguiente-numero`);
+export function getSiguienteNumeroFactura(puntoVentaId: number, condicionIvaId?: number, comprobanteInterno = false): Promise<{ numero: number }> {
+  const params = new URLSearchParams({ puntoVentaId: String(puntoVentaId) });
+  if (comprobanteInterno) params.set("comprobanteInterno", "true");
+  if (condicionIvaId) params.set("condicionIvaId", String(condicionIvaId));
+  return request<{ numero: number }>(`${FACTURAS_API}/siguiente-numero?${params}`);
 }
 
-export async function getAllFacturas(options: GetFacturasOptions = {}): Promise<FacturaResumen[]> {
-  const size = options.size ?? 100;
-  let page = options.page ?? 0;
-  const facturas: FacturaResumen[] = [];
-  let response: PageResponse<FacturaResumen>;
-
-  do {
-    response = await getFacturas('', { ...options, page, size });
-    facturas.push(...response.content);
-    page += 1;
-  } while (!response.last);
-
-  return facturas;
+export function getFacturasByCliente(clienteId: number, options: GetFacturasOptions = {}): Promise<PageResponse<FacturaResumen>> {
+  return getFacturas('', { ...options, clienteId });
 }
 
-export function getFacturasByCliente(clienteId: number): Promise<FacturaResumen[]> {
-  return getAllFacturas({ clienteId });
-}
-
-export function getFacturasByNumero(numero: number): Promise<FacturaResumen[]> {
-  return getAllFacturas({ numero });
+export function getFacturasByNumero(numero: number, options: GetFacturasOptions = {}): Promise<PageResponse<FacturaResumen>> {
+  return getFacturas('', { ...options, numero });
 }
 
 export function getFacturasByNumeroRango(
-  numeroDesde: number,
-  numeroHasta: number
-): Promise<FacturaResumen[]> {
-  return getAllFacturas({ numeroDesde, numeroHasta });
+  numeroDesde: number, numeroHasta: number, options: GetFacturasOptions = {}
+): Promise<PageResponse<FacturaResumen>> {
+  return getFacturas('', { ...options, numeroDesde, numeroHasta });
 }
 
-export function getFacturasByFilters(filters: GetFacturasOptions): Promise<FacturaResumen[]> {
-  return getAllFacturas(filters);
+export function getFacturasByFilters(filters: GetFacturasOptions): Promise<PageResponse<FacturaResumen>> {
+  return getFacturas('', filters);
 }
 
 export function getFactura(id: number): Promise<FacturaRequest> {
   return request<FacturaRequest>(`${FACTURAS_API}/${id}`);
 }
 
-export function getCatalogos(): Promise<Catalogos> {
-  return request<Catalogos>(`${API_BASE}/catalogos`);
+export function getComprobanteFacturaUrl(id: number): string {
+  return `${FACTURAS_API}/${id}/comprobante.pdf`;
 }
 
-export function crearCliente(body: ClienteRequest): Promise<OpcionCatalogo> {
-  return request<OpcionCatalogo>(`${API_BASE}/clientes`, {
+export function getCatalogos(): Promise<Catalogos> {
+  return request<Catalogos>(`${API_BASE}/catalogos?incluirClientes=false&incluirArticulos=false`);
+}
+
+export function crearCliente(body: ClienteRequest): Promise<ClienteCreado> {
+  return request<ClienteCreado>(`${API_BASE}/clientes`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body)
@@ -106,4 +100,26 @@ export function anularFactura(id: number): Promise<void> {
 
 export function reactivarFactura(id: number): Promise<void> {
   return request<void>(`${FACTURAS_API}/${id}/reactivar`, { method: 'POST' });
+}
+
+export function buscarClientes(params: URLSearchParams): Promise<PageResponse<import('./types.js').ClienteBusqueda>> {
+  return request(`${API_BASE}/clientes?${params}`);
+}
+
+export function getCliente(id: number): Promise<import('./types.js').ClienteBusqueda> {
+  return request(`${API_BASE}/clientes/${id}`);
+}
+
+export function buscarArticulos(params: URLSearchParams): Promise<PageResponse<import('./types.js').ArticuloBusqueda>> {
+  return request(`${API_BASE}/articulos?${params}`);
+}
+
+export function getPrecioArticulo(id: number): Promise<import('./types.js').ArticuloBusqueda> {
+  return request(`${API_BASE}/articulos/precios/${id}`);
+}
+
+export function emitirFiscalDesde(id: number, body: FacturaRequest): Promise<FacturaResumen> {
+  return request(`${FACTURAS_API}/${id}/emitir-fiscal`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+  });
 }

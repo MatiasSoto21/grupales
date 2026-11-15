@@ -1,4 +1,4 @@
-package com.example.facturacion.services;
+package com.example.facturacion.repositories;
 
 import com.example.facturacion.entities.*;
 import jakarta.persistence.EntityManager;
@@ -6,26 +6,31 @@ import jakarta.persistence.EntityManager;
 import java.time.LocalDate;
 import java.util.List;
 
-public class ConsultasService {
+@org.springframework.stereotype.Repository
+@org.springframework.transaction.annotation.Transactional(readOnly = true)
+public class ConsultasRepository {
+    @jakarta.persistence.PersistenceContext
+    private EntityManager em;
+
 
     // =========================================================================
     // NIVEL 1: Consultas Básicas y Proyecciones
     // =========================================================================
 
     // 1. Obtener la lista completa de todas las facturas de venta registradas.
-    public static List<FacturaVenta> obtenerTodasLasFacturas(EntityManager em) {
+    public List<FacturaVenta> obtenerTodasLasFacturas() {
         String jpql = "SELECT f FROM FacturaVenta f";
         return em.createQuery(jpql, FacturaVenta.class).getResultList();
     }
 
     // 2. Seleccionar únicamente el número de factura, la fecha de emisión y el importe total.
-    public static List<Object[]> obtenerResumenFacturas(EntityManager em) {
+    public List<Object[]> obtenerResumenFacturas() {
         String jpql = "SELECT f.numero, f.fechaEmision, f.importeTotal FROM FacturaVenta f";
         return em.createQuery(jpql, Object[].class).getResultList();
     }
 
     // 3. Obtener todos los artículos que pertenecen a un rubro con una denominación específica.
-    public static List<Articulo> obtenerArticulosPorRubro(EntityManager em, String denominacionRubro) {
+    public List<Articulo> obtenerArticulosPorRubro(String denominacionRubro) {
         String jpql = "SELECT a FROM Articulo a WHERE a.rubro.denominacion = :rubroNombre";
         return em.createQuery(jpql, Articulo.class)
                 .setParameter("rubroNombre", denominacionRubro)
@@ -33,7 +38,7 @@ public class ConsultasService {
     }
 
     // 4. Listar todas las facturas de venta emitidas dentro de un rango de fechas.
-    public static List<FacturaVenta> obtenerFacturasPorRangoFechas(EntityManager em, LocalDate desde, LocalDate hasta) {
+    public List<FacturaVenta> obtenerFacturasPorRangoFechas(LocalDate desde, LocalDate hasta) {
         String jpql = "SELECT f FROM FacturaVenta f WHERE f.fechaEmision BETWEEN :fechaDesde AND :fechaHasta";
         return em.createQuery(jpql, FacturaVenta.class)
                 .setParameter("fechaDesde", desde)
@@ -46,7 +51,7 @@ public class ConsultasService {
     // =========================================================================
 
     // 5. Facturas "EMITIDA", importeTotal > $10,000 y fechaAnulacion sea nula.
-    public static List<FacturaVenta> obtenerFacturasValidasAltas(EntityManager em, double minImporte) {
+    public List<FacturaVenta> obtenerFacturasValidasAltas(double minImporte) {
         String jpql = "SELECT f FROM FacturaVenta f " +
                 "WHERE f.estado = 'EMITIDA' " +
                 "AND f.importeTotal > :minImporte " +
@@ -57,7 +62,7 @@ public class ConsultasService {
     }
 
     // 6. Clientes por denominación parcial (ignore case) o CUIT/CUIL comience con "20-".
-    public static List<Cliente> buscarClientesPorNombreOCuit(EntityManager em, String textoNombre, String prefijoCuit) {
+    public List<Cliente> buscarClientesPorNombreOCuit(String textoNombre, String prefijoCuit) {
         String jpql = "SELECT c FROM Cliente c " +
                 "WHERE LOWER(c.denominacion) LIKE LOWER(:texto) " +
                 "OR c.cuitCuil LIKE :cuitPrefijo";
@@ -68,20 +73,20 @@ public class ConsultasService {
     }
 
     // 7. Estados posibles de facturas de venta sin duplicados, ordenados ascendentemente.
-    public static List<String> obtenerEstadosFacturasUnicos(EntityManager em) {
+    public List<String> obtenerEstadosFacturasUnicos() {
         String jpql = "SELECT DISTINCT f.estado FROM FacturaVenta f ORDER BY f.estado ASC";
         return em.createQuery(jpql, String.class).getResultList();
     }
 
     // 8. Cantidad de facturas emitidas, suma acumulada y promedio devuelto en un arreglo Object[].
-    public static Object[] obtenerEstadisticasFacturasEmitidas(EntityManager em) {
+    public Object[] obtenerEstadisticasFacturasEmitidas() {
         String jpql = "SELECT COUNT(f), SUM(f.importeTotal), AVG(f.importeTotal) " +
                 "FROM FacturaVenta f WHERE f.estado = 'EMITIDA'";
         return em.createQuery(jpql, Object[].class).getSingleResult();
     }
 
     // 9. Puntos de venta cuyo número coincida con una lista enviada por parámetro.
-    public static List<PuntoVenta> obtenerPuntosVentaPorNumeros(EntityManager em, List<Integer> numeros) {
+    public List<PuntoVenta> obtenerPuntosVentaPorNumeros(List<Integer> numeros) {
         String jpql = "SELECT pv FROM PuntoVenta pv WHERE pv.numero IN :listaNumeros";
         return em.createQuery(jpql, PuntoVenta.class)
                 .setParameter("listaNumeros", numeros)
@@ -93,7 +98,7 @@ public class ConsultasService {
     // =========================================================================
 
     // 10. Facturas creadas por un usuario según su username (navegación implícita).
-    public static List<FacturaVenta> obtenerFacturasPorUsuarioCarga(EntityManager em, String username) {
+    public List<FacturaVenta> obtenerFacturasPorUsuarioCarga(String username) {
         String jpql = "SELECT f FROM FacturaVenta f WHERE f.usuarioCarga.usuario = :username";
         return em.createQuery(jpql, FacturaVenta.class)
                 .setParameter("username", username)
@@ -101,7 +106,7 @@ public class ConsultasService {
     }
 
     // 11. Detalles de factura correspondientes a un punto de venta determinado.
-    public static List<FacturaVentaDetalle> obtenerDetallesPorNumeroPuntoVenta(EntityManager em, int numeroPV) {
+    public List<FacturaVentaDetalle> obtenerDetallesPorNumeroPuntoVenta(int numeroPV) {
         String jpql = "SELECT d FROM FacturaVentaDetalle d " +
                 "INNER JOIN d.factura f " +
         "WHERE f.puntoVenta.numero = :numeroPV";
@@ -111,14 +116,14 @@ public class ConsultasService {
     }
 
     // 12. Denominación de artículos con denominación de su marca (LEFT JOIN).
-    public static List<Object[]> obtenerArticulosConMarca(EntityManager em) {
+    public List<Object[]> obtenerArticulosConMarca() {
         String jpql = "SELECT a.denominacion, m.denominacion " +
                 "FROM Articulo a LEFT JOIN a.marca m";
         return em.createQuery(jpql, Object[].class).getResultList();
     }
 
     // 13. Facturas que contengan al menos un detalle de un artículo de una marca específica.
-    public static List<FacturaVenta> obtenerFacturasPorMarcaArticulo(EntityManager em, String marcaNombre) {
+    public List<FacturaVenta> obtenerFacturasPorMarcaArticulo(String marcaNombre) {
         String jpql = "SELECT DISTINCT f FROM FacturaVenta f " +
                 "JOIN f.detalles d " +
         "JOIN d.listaPrecioArticulo lpa " +
@@ -130,14 +135,14 @@ public class ConsultasService {
     }
 
     // 14. Facturas cuyo importeTotal sea mayor al promedio general.
-    public static List<FacturaVenta> obtenerFacturasSuperioresAlPromedio(EntityManager em) {
+    public List<FacturaVenta> obtenerFacturasSuperioresAlPromedio() {
         String jpql = "SELECT f FROM FacturaVenta f " +
                 "WHERE f.importeTotal > (SELECT AVG(f2.importeTotal) FROM FacturaVenta f2)";
         return em.createQuery(jpql, FacturaVenta.class).getResultList();
     }
 
     // 15. Facturas asociadas a un cliente por su CUIT/CUIL.
-    public static List<FacturaVenta> obtenerFacturasPorCuitCliente(EntityManager em, String cuit) {
+    public List<FacturaVenta> obtenerFacturasPorCuitCliente(String cuit) {
         String jpql = "SELECT f FROM FacturaVenta f WHERE f.cliente.cuitCuil = :cuitCliente";
         return em.createQuery(jpql, FacturaVenta.class)
                 .setParameter("cuitCliente", cuit)
@@ -149,7 +154,7 @@ public class ConsultasService {
     // =========================================================================
 
     // 16. Descripción del punto de venta, cantidad de facturas y suma total.
-    public static List<Object[]> obtenerResumenFacturacionPorPuntoVenta(EntityManager em) {
+    public List<Object[]> obtenerResumenFacturacionPorPuntoVenta() {
         String jpql = "SELECT pv.descripcion, COUNT(f), SUM(f.importeTotal) " +
                 "FROM FacturaVenta f JOIN f.puntoVenta pv " +
         "GROUP BY pv.id, pv.descripcion";
@@ -157,7 +162,7 @@ public class ConsultasService {
     }
 
     // 17. Nombres de usuarios de carga que hayan registrado más de N facturas.
-    public static List<String> obtenerUsuariosConMasDeNFacturas(EntityManager em, long minFacturas) {
+    public List<String> obtenerUsuariosConMasDeNFacturas(long minFacturas) {
         String jpql = "SELECT u.usuario FROM FacturaVenta f " +
                 "JOIN f.usuarioCarga u " +
         "GROUP BY u.id, u.usuario " +
@@ -168,7 +173,7 @@ public class ConsultasService {
     }
 
     // 18. Denominación de marca, total unidades vendidas y subtotal acumulado.
-    public static List<Object[]> obtenerVentasTotalesPorMarca(EntityManager em) {
+    public List<Object[]> obtenerVentasTotalesPorMarca() {
         String jpql = "SELECT m.denominacion, SUM(d.cantidad), SUM(d.importeSubtotal) " +
                 "FROM FacturaVentaDetalle d " +
                 "JOIN d.listaPrecioArticulo lpa " +
@@ -179,7 +184,7 @@ public class ConsultasService {
     }
 
     // 19. Denominación de Condición de IVA y suma total facturada.
-    public static List<Object[]> obtenerTotalFacturadoPorCondicionIva(EntityManager em) {
+    public List<Object[]> obtenerTotalFacturadoPorCondicionIva() {
         String jpql = "SELECT c.denominacion, SUM(f.importeTotal) " +
                 "FROM FacturaVenta f JOIN f.condicionIva c " +
         "GROUP BY c.id, c.denominacion";
@@ -191,7 +196,7 @@ public class ConsultasService {
     // =========================================================================
 
     // 20. Marcas con al menos un artículo facturado (EXISTS correlacionado).
-    public static List<Marca> obtenerMarcasConArticulosFacturados(EntityManager em) {
+    public List<Marca> obtenerMarcasConArticulosFacturados() {
         String jpql = "SELECT m FROM Marca m " +
                 "WHERE EXISTS (" +
         "   SELECT d FROM FacturaVentaDetalle d " +
@@ -201,7 +206,7 @@ public class ConsultasService {
     }
 
     // 21. Artículos que NUNCA han sido facturados (NOT EXISTS correlacionado).
-    public static List<Articulo> obtenerArticulosNuncaFacturados(EntityManager em) {
+    public List<Articulo> obtenerArticulosNuncaFacturados() {
         String jpql = "SELECT a FROM Articulo a " +
                 "WHERE NOT EXISTS (" +
         "   SELECT d FROM FacturaVentaDetalle d " +
@@ -211,7 +216,7 @@ public class ConsultasService {
     }
 
     // 22. Proyección condicional CASE WHEN para categorización de facturas.
-    public static List<Object[]> obtenerFacturasCategorizadas(EntityManager em) {
+    public List<Object[]> obtenerFacturasCategorizadas() {
         String jpql = "SELECT f.numero, f.importeTotal, " +
                 "CASE " +
                 "   WHEN f.importeTotal > 50000 THEN 'ALTO VALOR' " +

@@ -1,0 +1,19 @@
+POST http://localhost:8080/api/facturas
+Content-Type: application/json
+
+{
+  "puntoVentaId": 1,
+  "condicionIvaId": 1,
+  "tipoMonedaId": 1,
+  "clienteId": null,
+  "observaciones": "Prueba de emision real en ARCA",
+  "detalles": [
+    {
+      "articuloId": 1,
+      "listaPrecioArticuloId": 1,
+      "cantidad": 1,
+      "porcentajeBonificacion": 0,
+      "descripcion": "Producto de prueba"
+    }
+  ]
+}

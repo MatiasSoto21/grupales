@@ -34,15 +34,15 @@ public class ReporteService {
         try (Document doc = new Document(pdf, PageSize.A4.rotate())) {
             doc.add(new Paragraph("Reporte ejecutivo de ventas").setBold().setFontSize(16));
 
-            Table tabla = new Table(UnitValue.createPercentArray(new float[]{1, 1.2f, 2.5f, 2.5f, 2, 1.3f, 1}))
-                    .useAllAvailableWidth();
+            Table tabla = new Table(UnitValue.createPercentArray(new float[]{2.2f, 1.2f, 2.5f, 2.5f, 2, 1.3f, 1}))
+                    .useAllAvailableWidth().setFixedLayout().setFontSize(9);
 
             for (String encabezado : ENCABEZADOS) {
                 tabla.addHeaderCell(new Cell().add(new Paragraph(encabezado).setBold()));
             }
 
             for (FacturaReporteDTO f : facturas) {
-                tabla.addCell(String.valueOf(f.getNumeroFactura()));
+                tabla.addCell(f.getReferenciaComprobante());
                 tabla.addCell(String.valueOf(f.getFechaEmision()));
                 tabla.addCell(Objects.toString(f.getClienteDenominacion(), ""));
                 tabla.addCell(Objects.toString(f.getCondicionIva(), ""));
@@ -70,7 +70,7 @@ public class ReporteService {
             int fila = 1;
             for (FacturaReporteDTO f : facturas) {
                 Row row = hoja.createRow(fila++);
-                row.createCell(0).setCellValue(f.getNumeroFactura());
+                row.createCell(0).setCellValue(f.getReferenciaComprobante());
                 row.createCell(1).setCellValue(String.valueOf(f.getFechaEmision()));
                 row.createCell(2).setCellValue(f.getClienteDenominacion());
                 row.createCell(3).setCellValue(f.getCondicionIva());

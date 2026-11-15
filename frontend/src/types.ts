@@ -1,4 +1,16 @@
 export interface FacturaReporteDTO {
+  referenciaListado?: string;
+  referenciaComprobante?: string;
+  referenciaCompleta?: string;
+  puntoVentaId?: number;
+  puntoVentaNumero?: number;
+  tipoComprobanteAfip?: number;
+  origenInternoId?: number | null;
+  origenInternoReferencia?: string;
+  origenInternoEditable?: boolean;
+  comprobanteInterno?: boolean;
+  origenComprobanteId?: number | null;
+  comprobanteFiscalDerivadoId?: number | null;
   id: number;
   numeroFactura: number | null;
   fechaEmision: string;
@@ -8,11 +20,19 @@ export interface FacturaReporteDTO {
   importeTotal: number;
   cantidadItems: number;
   estado: string;
+  tieneCae: boolean;
+  comprobanteDisponible: boolean;
+  editable: boolean;
+  receptorPrueba?: boolean;
+  motivoRechazo?: string | null;
 }
 
 export type FacturaResumen = FacturaReporteDTO;
 
 export interface GetFacturasOptions {
+  puntoVentaId?: number;
+  claseDocumento?: 'X' | 'FISCAL';
+  incluirVinculados?: boolean;
   fechaDesde?: string;
   fechaHasta?: string;
   estado?: string;
@@ -54,16 +74,25 @@ export interface PrecioArticuloCatalogo {
 }
 
 export interface OpcionCatalogo {
+  codigoAfip?: number;
   id: number;
   denominacion: string;
+  condicionIvaId?: number | null;
   descripcion?: string;
   numero?: number;
   simbolo?: string;
 }
 
+export interface ClienteCreado {
+  id: number;
+  denominacion: string;
+  condicionIvaId: number;
+}
+
 export interface ClienteRequest {
   cuitCuil: string;
   denominacion: string;
+  condicionIvaId: number;
   email?: string;
   telefono?: string;
   celular?: string;
@@ -72,11 +101,14 @@ export interface ClienteRequest {
 }
 
 export interface Catalogos {
+  estadosFactura?: string[];
+  facturacion?: { ambiente: string; fechaActual: string; fechaFiscalMinima: string; fechaFiscalMaxima: string };
   clientes: OpcionCatalogo[];
   condicionesIva: OpcionCatalogo[];
   puntosVenta: OpcionCatalogo[];
   tiposMoneda: OpcionCatalogo[];
   articulos: ArticuloCatalogo[];
+  listasPrecio: Array<{ id: number; codigo: string; denominacion: string }>;
 }
 
 export interface FacturaDetalleRequestDTO {
@@ -99,8 +131,18 @@ export interface DetalleFactura {
 }
 
 export interface FacturaRequestDTO {
+  referenciaComprobante?: string;
+  comprobanteFiscalReferencia?: string;
+  version?: number;
+  editable?: boolean;
+  puedeEmitirFiscal?: boolean;
+  comprobanteInterno?: boolean;
+  origenComprobanteId?: number | null;
+  comprobanteFiscalDerivadoId?: number | null;
   numero?: number | null;
   fechaEmision?: string;
+  fechaOperacion?: string | null;
+  fechaSolicitudAfip?: string | null;
   clienteId: number | null;
   condicionIvaId: number;
   tipoMonedaId: number;
@@ -111,3 +153,21 @@ export interface FacturaRequestDTO {
 }
 
 export type FacturaRequest = FacturaRequestDTO;
+
+export interface ClienteBusqueda {
+  id: number;
+  denominacion: string;
+  cuitCuil: string;
+  condicionIvaId: number | null;
+  condicionIvaDenominacion: string | null;
+}
+
+export interface ArticuloBusqueda {
+  listaPrecioArticuloId: number;
+  articuloId: number;
+  codigo: string;
+  denominacion: string;
+  listaPrecioId: number;
+  listaPrecioDenominacion: string;
+  precioVenta: number;
+}

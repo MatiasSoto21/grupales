@@ -1,6 +1,7 @@
 :root{
   color-scheme:light;
   --ink:#172033;
+  --on-accent:#ffffff;
   --ink-soft:#344054;
   --muted:#667085;
   --line:#dfe5ef;
@@ -28,6 +29,7 @@
 :root[data-theme="dark"]{
   color-scheme:dark;
   --ink:#edf2fa;
+  --on-accent:#101827;
   --ink-soft:#d6deea;
   --muted:#a2aec0;
   --line:#344155;
@@ -248,7 +250,7 @@ input[readonly]{
 .btn:active:not(:disabled){transform:translateY(0)}
 .btn:focus-visible,.theme-toggle:focus-visible{outline:3px solid color-mix(in srgb,var(--brand) 35%,transparent);outline-offset:2px}
 .btn:disabled{opacity:.55;cursor:not-allowed}
-.btn-primary{background:var(--brand);color:#fff;box-shadow:0 5px 12px color-mix(in srgb,var(--brand) 22%,transparent)}
+.btn-primary{background:var(--brand);color:var(--on-accent);box-shadow:0 5px 12px color-mix(in srgb,var(--brand) 22%,transparent)}
 .btn-primary:hover:not(:disabled){background:var(--brand-dark)}
 .btn-secondary{background:var(--surface);border-color:var(--line-strong);color:var(--ink-soft)}
 .btn-secondary:hover:not(:disabled){background:var(--surface-2);border-color:#98a2b3}
@@ -256,7 +258,7 @@ input[readonly]{
 .topbar .btn-secondary:hover{background:rgba(255,255,255,.14)}
 .btn-danger{background:var(--danger-soft);color:var(--danger);border-color:color-mix(in srgb,var(--danger) 28%,transparent)}
 .btn-danger:hover:not(:disabled){border-color:var(--danger)}
-.btn-success{background:var(--success);color:#fff}
+.btn-success{background:var(--success);color:var(--on-accent)}
 .btn-success:hover:not(:disabled){background:var(--success-dark)}
 .btn-small{padding:7px 10px;min-height:32px;font-size:.78rem}
 .btn-link{background:transparent;color:var(--brand);padding:4px}
@@ -281,7 +283,7 @@ input[readonly]{
 .table tbody tr:last-child td{border-bottom:0}
 .text-right{text-align:right!important}
 .text-center{text-align:center!important}
-.actions{display:flex;gap:6px;align-items:center}
+.actions{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
 
 .pill{
   display:inline-flex;
@@ -441,7 +443,81 @@ body.modal-mode .client-create-modal .client-create-grid{grid-template-columns:r
   .pagination .btn{padding:6px 8px}
   .client-create-grid{grid-template-columns:1fr}
   .client-create-actions .btn{flex:1}
-  .client-create-modal .client-create-grid{grid-template-columns:1fr}
+  .client-create-modal .client-create-grid,body.modal-mode .client-create-modal .client-create-grid{grid-template-columns:1fr}
   .client-create-actions{grid-column:auto!important}
   .product-modal-grid{grid-template-columns:1fr}
 }
+
+.alert,.confirm-message{overflow-wrap:anywhere}
+
+.modal-header .theme-toggle{color:var(--ink);background:var(--surface-3);border-color:var(--line-strong)}
+.modal-header .theme-toggle:hover{background:var(--brand-soft)}
+
+.client-select-actions{flex-wrap:wrap;margin-top:8px}
+.client-select-actions .btn{flex:1;padding:8px;font-size:.8rem}
+.client-explorer{width:min(960px,calc(100vw - 24px));max-height:calc(100dvh - 24px);overflow:auto}
+.client-explorer-filters{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;padding:18px}
+.client-explorer-actions{display:flex;gap:8px;grid-column:1/-1}
+.client-explorer-status{margin:0;padding:0 18px 14px;overflow-wrap:anywhere}
+.client-explorer-pagination{display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;padding:14px}
+.client-explorer td{overflow-wrap:anywhere}
+@media(max-width:560px){
+  .client-explorer-filters{grid-template-columns:1fr}
+  .client-explorer .modal-header{gap:8px;padding:14px}
+  .client-explorer .table{min-width:600px}
+}
+
+.article-explorer{width:min(960px,calc(100vw - 24px));max-height:calc(100dvh - 24px);overflow:auto}
+.article-explorer .article-results{min-width:0;width:100%;table-layout:fixed;white-space:normal}
+.article-explorer .article-results th,.article-explorer .article-results td{padding:10px 8px}
+.article-explorer .article-results th:nth-child(1){width:12%}
+.article-explorer .article-results th:nth-child(2){width:43%}
+.article-explorer .article-results th:nth-child(3){width:22%}
+.article-explorer .article-results th:nth-child(4){width:23%}
+.article-explorer .article-results .btn{max-width:100%;white-space:normal}
+@media(max-width:560px){
+  .article-explorer .article-results th,.article-explorer .article-results td{padding:8px 4px;font-size:.72rem}
+  .article-explorer .article-results .btn{padding:6px 4px;font-size:.69rem}
+}
+.article-explorer .article-results td{overflow-wrap:anywhere}
+.article-explorer .product-modal-body{border-top:1px solid var(--line)}
+.article-explorer .product-modal-grid{margin-top:0}
+.article-explorer .modal-header{gap:10px}
+
+.document-reference{min-width:65px;max-width:150px;white-space:normal}
+.document-reference>strong{font-size:.82rem;font-variant-numeric:tabular-nums}
+#invoice-table{table-layout:fixed;min-width:880px;white-space:normal}
+#invoice-table th,#invoice-table td{padding:11px 8px;overflow-wrap:anywhere}
+#invoice-table th{font-size:.66rem;letter-spacing:.025em}
+#invoice-table td{font-size:.8rem}
+#invoice-table th:nth-child(1){width:11%;white-space:nowrap;overflow-wrap:normal}
+#invoice-table th:nth-child(2){width:9%}
+#invoice-table th:nth-child(3){width:14%}
+#invoice-table th:nth-child(4){width:12%}
+#invoice-table th:nth-child(5){width:10%}
+#invoice-table th:nth-child(6){width:12%}
+#invoice-table th:nth-child(7){width:12%}
+#invoice-table th:nth-child(8){width:5%}
+#invoice-table th:nth-child(9){width:15%}
+#invoice-table td:nth-child(2),#invoice-table td:nth-child(7){white-space:nowrap}
+#invoice-table .document-reference{min-width:0;max-width:none}
+#invoice-table .pill{max-width:100%;white-space:normal;padding:5px 6px;font-size:.7rem}
+#facturas-tbody .actions{min-width:0;max-width:none;gap:5px}
+#facturas-tbody .actions .btn{padding:6px 8px;font-size:.73rem}
+#invoice-table th:last-child,#invoice-table td:last-child{position:sticky;right:0;background:var(--surface);box-shadow:-1px 0 var(--line)}
+#invoice-table th:last-child{background:var(--surface-2);z-index:1}
+
+
+@media(min-width:851px){
+  .invoice-list-page .topbar-inner,.invoice-list-page .container{width:min(1400px,calc(100% - 32px))}
+}
+
+/* Los campos bloqueados conservan contraste y no simulan desplegables activos. */
+.field select:disabled,.field input:disabled,.field textarea:disabled,
+.line-table input:disabled,.line-table select:disabled{
+  opacity:1;color:var(--muted);background:var(--surface-3);
+  border-color:var(--line);cursor:not-allowed;
+}
+.field select:disabled,.line-table select:disabled{appearance:none;background-image:none}
+.alert:focus{outline:2px solid currentColor;outline-offset:3px}
+[data-dialog-alert]{margin:14px 20px}

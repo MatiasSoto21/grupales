@@ -15,4 +15,12 @@ public interface FacturaVentaRepository extends JpaRepository<FacturaVenta, Long
     Long obtenerNumeroMaximo();
 
     boolean existsByNumero(Long numero);
+
+    @Query("SELECT MAX(f.numero) FROM FacturaVenta f WHERE f.tipoComprobanteAfip = 0 AND f.puntoVenta.id = :punto")
+    Long obtenerUltimoNumeroInterno(@org.springframework.data.repository.query.Param("punto") Long puntoVentaId);
+
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT f FROM FacturaVenta f WHERE f.id = :id")
+    Optional<FacturaVenta> buscarPorIdConBloqueo(@org.springframework.data.repository.query.Param("id") Long id);
+
 }

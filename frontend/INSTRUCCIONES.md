@@ -1,50 +1,29 @@
-# Sistema de facturación — HTML5 + TypeScript
+# Frontend de facturacion
 
-Frontend del CRUD de facturas. Las vistas están hechas con HTML5 semántico, los estilos con CSS y la lógica del navegador y el servidor local con TypeScript. El TypeScript se compila a JavaScript dentro de `dist/` antes de ejecutarse en el navegador.
+## Ejecutar
 
-## Requisitos
-- Node.js LTS y npm.
-- Backend Spring Boot funcionando en `http://localhost:8080`.
-- PostgreSQL disponible para el backend.
+Desde frontend, instalar con npm ci y ejecutar npm start. Abrir http://localhost:3000. npm run dev permite desarrollo con recompilacion.
 
-## Instalación y ejecución
-1. Descomprimí esta carpeta.
-2. Abrí una terminal en la carpeta `FacturacionFrontTS`.
-3. Instalá las dependencias: `npm install`.
-4. Iniciá el frontend: `npm start`.
-5. Abrí `http://localhost:3000`.
+El backend se configura mediante BACKEND_URL y por defecto escucha en http://localhost:8080. Express sirve public y dist y reenvia /api al backend. El proyecto utiliza Java 21 y PostgreSQL; ver ../README.md para configurar la instalacion completa y las credenciales locales.
 
-Para desarrollar y recompilar automáticamente, ejecutá `npm run dev`.
+## Recorrido de usuario
 
-## Estructura
-- `public/index.html`: listado, filtros y accesos a reportes (HTML5).
-- `public/factura-form.html`: formulario de alta y edición (HTML5).
-- `public/app.css`: estilos responsive.
-- `src/facturas.ts`: listado, filtros y anulación.
-- `src/factura-form.ts`: formulario de alta y edición.
-- `src/api.ts`: comunicación tipada con la API REST de Spring Boot.
-- `src/types.ts`: interfaces TypeScript para facturas y catálogos.
-- `src/dom.ts`: utilidades tipadas para el DOM.
-- `src/server.ts`: servidor local Express escrito en TypeScript.
-- `backend-patches/`: archivos Java requeridos para completar los endpoints de integración.
+- El listado usa paginas de diez registros con filtros/orden en el backend y exportaciones con los mismos parametros.
+- Nueva factura y Editar abren factura-form.html en un modal; clientes y productos se seleccionan desde exploradores nativos paginados.
+- El mismo formulario permite X interno o A/B fiscal; emitir desde un guardado abre un borrador separado, nunca cambia el origen en el mismo registro.
+- Guardar muestra y enfoca el aviso arriba. El exito permanece al volver al listado; los errores mantienen el borrador.
+- Las cargas y guardados bloquean acciones prematuras. Los desplegables bloqueados se distinguen visualmente; al emitir desde X se habilitan fechas y punto de venta.
+- Cantidades enteras positivas y bonificaciones decimales; el backend valida precios y recalcula importes.
+- Tema claro/oscuro compartido entre listado, formulario y modales.
 
-## Endpoints del backend usados
-- `GET /api/facturas?page=0&size=10` para el listado paginado (la página comienza en 0; valores predeterminados: página 0 y 10 registros), además de filtros por cliente, comprobante exacto o rango, fecha, estado e importe mínimo.
-- `GET /api/facturas/{id}` para recuperar una factura al editar.
-- `POST /api/facturas` para crear.
-- `PUT /api/facturas/{id}` para actualizar.
-- `DELETE /api/facturas/{id}` para anular lógicamente.
-- `POST /api/facturas/{id}/reactivar` para volver a activar una factura anulada (estado `EMITIDA`); desde la edición también se puede elegir `EMITIDA`, `PENDIENTE` o `PAGADA`.
-- `GET /api/catalogos` para clientes, condiciones de IVA, puntos de venta, monedas y artículos.
-- `POST /api/clientes` para crear un cliente desde el formulario de factura. CUIT/CUIL y denominación son obligatorios; los datos de contacto y domicilio son opcionales. El cliente creado se selecciona en la factura sin perder el borrador.
-- La cantidad de cada ítem de factura debe ser un entero mayor que cero; las bonificaciones pueden expresarse con decimales.
-- La API responde `400 Bad Request` ante datos de factura inválidos y `404 Not Found` cuando se actualiza una factura inexistente. La creación y edición se realizan desde el formulario independiente.
-- `GET /api/facturas/pdf` y `GET /api/facturas/excel` para exportar informes.
+## Verificar
 
-Los controles de paginación se muestran debajo del listado. Las exportaciones incluyen todos los resultados que coinciden con los filtros, independientemente de la página seleccionada.
-El filtro `sinCliente=true` devuelve facturas sin cliente asignado; también se aplica a las exportaciones.
+    npm test
+    npx playwright install chromium
+    npm run test:e2e -- invoices.spec.ts
 
-## Integración
-Los archivos de `backend-patches/` son referencia para los cambios de integración explicados en la versión anterior del proyecto. No reemplaces archivos del backend que ya hayas modificado y probado sin comparar primero el contenido. El frontend espera que el DTO del listado incluya `id`, `numeroFactura`, `fechaEmision`, `clienteDenominacion`, `condicionIva`, `puntoVentaDescripcion`, `importeTotal`, `cantidadItems` y `estado`.
+Ultima validacion: 7 pruebas de logica/API/proxy y 64 escenarios de navegador aprobados el 14/11/2026. Los guardados del navegador se simulan mediante respuestas interceptadas.
 
-El frontend calcula un total orientativo para ayudar al usuario; el importe definitivo lo calcula el backend usando los precios de la base de datos.
+Los recorridos contra un backend real son opt-in; RUN_WRITING_TESTS=1 puede crear registros y solicitar autorizaciones de homologacion. No habilitarlo para una comprobacion ordinaria. Ver ../FUNCIONAMIENTO-ARCA.md.
+
+No se versionan node_modules, dist, reportes Playwright ni evidencia local. npm start compila TypeScript antes de servir la aplicacion.

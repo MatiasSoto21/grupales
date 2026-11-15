@@ -1,0 +1,59 @@
+HELP.md
+target/
+.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+### STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+build/
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+### VS Code ###
+.vscode/*
+!.vscode/settings.json
+
+### Credenciales locales y salidas de consola ###
+src/main/resources/db-local.properties
+salida.txt
+
+### Dependencias, compilacion y evidencia local ###
+node_modules/
+dist/
+.test-evidence/
+test-results/
+playwright-report/
+*.log
+*.args
+*.argfile
+
+### Credenciales y configuracion privada ###
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+*.p12
+*.pfx
+/backend/src/main/resources/certificado_test.crt
+/backend/config/

@@ -1,5 +1,6 @@
-import { anularFactura, getCatalogos, getFacturas, reactivarFactura, FACTURAS_API } from './api.js';
-import { byId, clearAlert, currency, initTheme, makeOption, showAlert } from './dom.js';
+import { ClienteExplorer } from './cliente-explorer.js';
+import { anularFactura, getCatalogos, getComprobanteFacturaUrl, getFacturas, reactivarFactura, FACTURAS_API } from './api.js';
+import { byId, clearAlert, currency, initTheme, initValidationFeedback, makeOption, showAlert } from './dom.js';
 import type { Catalogos, FacturaResumen, PageResponse } from './types.js';
 
 const tbody = byId<HTMLTableSectionElement>('facturas-tbody');
@@ -10,9 +11,26 @@ let totalPages = 1;
 let sortBy: 'numero' | 'fechaEmision' | 'total' = 'fechaEmision';
 let sortDir: 'asc' | 'desc' = 'desc';
 let loadRequestId = 0;
+let invoiceBusy = false;
+let actionBusy = false;
 const PAGE_SIZE = 10;
 
+const clienteExplorer = new ClienteExplorer(client => {
+  byId<HTMLInputElement>('clienteId').value = String(client.id);
+  byId<HTMLInputElement>('cliente-nombre').value = client.denominacion;
+});
+byId('btn-buscar-cliente').addEventListener('click', () => clienteExplorer.open());
+byId('btn-sin-cliente').addEventListener('click', () => {
+  byId<HTMLInputElement>('clienteId').value = 'SIN_CLIENTE';
+  byId<HTMLInputElement>('cliente-nombre').value = 'Consumidor final (sin cliente)';
+});
+byId('btn-todos-clientes').addEventListener('click', () => {
+  byId<HTMLInputElement>('clienteId').value = '';
+  byId<HTMLInputElement>('cliente-nombre').value = 'Todos los clientes';
+});
+
 initTheme();
+initValidationFeedback();
 
 function formatDate(value: string | null | undefined): string {
   if (!value) return '—';
@@ -28,12 +46,12 @@ function escapeHtml(value: unknown): string {
 
 function readFilters(): URLSearchParams {
   const params = new URLSearchParams();
-  for (const key of ['fechaDesde', 'fechaHasta', 'estado', 'montoMinimo', 'numero', 'numeroDesde', 'numeroHasta']) {
+  for (const key of ['fechaDesde', 'fechaHasta', 'estado', 'numero', 'numeroDesde', 'numeroHasta', 'puntoVentaId']) {
     const input = byId<HTMLInputElement | HTMLSelectElement>(key);
     const value = input.value.trim();
     if (value) params.set(key, value);
   }
-  const clienteId = byId<HTMLSelectElement>('clienteId').value;
+  const clienteId = byId<HTMLInputElement>('clienteId').value;
   if (clienteId === 'SIN_CLIENTE') {
     params.set('sinCliente', 'true');
   } else if (clienteId) {
@@ -48,17 +66,12 @@ function validateFilters(): boolean {
   const numero = byId<HTMLInputElement>('numero').value;
   const numeroDesde = byId<HTMLInputElement>('numeroDesde').value;
   const numeroHasta = byId<HTMLInputElement>('numeroHasta').value;
-  const montoMinimo = byId<HTMLInputElement>('montoMinimo').value;
 
   for (const value of [numero, numeroDesde, numeroHasta]) {
     if (value && (!/^\d+$/.test(value) || !Number.isSafeInteger(Number(value)))) {
       showAlert('Los números de comprobante deben ser enteros no negativos.');
       return false;
     }
-  }
-  if (montoMinimo && (!Number.isFinite(Number(montoMinimo)) || Number(montoMinimo) < 0)) {
-    showAlert('El importe mínimo debe ser un número igual o mayor que cero.');
-    return false;
   }
 
   if (fechaDesde && fechaHasta && fechaDesde > fechaHasta) {
@@ -79,26 +92,31 @@ function validateFilters(): boolean {
 
 async function loadClientFilter(): Promise<void> {
   const catalogos: Catalogos = await getCatalogos();
-  const clientSelect = byId<HTMLSelectElement>('clienteId');
-  clientSelect.replaceChildren(makeOption('', 'Todos los clientes'));
-  for (const client of catalogos.clientes) {
-    clientSelect.append(makeOption(client.id, client.denominacion));
+  if (catalogos.estadosFactura) {
+    const stateSelect = byId<HTMLSelectElement>('estado');
+    stateSelect.replaceChildren(makeOption('', 'Todos los estados'));
+    for (const state of catalogos.estadosFactura) stateSelect.append(makeOption(state, state));
   }
-  clientSelect.append(makeOption('SIN_CLIENTE', 'Consumidor final (sin cliente)'));
+  const points = byId<HTMLSelectElement>('puntoVentaId');
+  for (const point of catalogos.puntosVenta) points.append(makeOption(point.id, `${String(point.numero ?? '').padStart(5, '0')} · ${point.descripcion ?? 'Punto de venta'}`));
+  clienteExplorer.setTaxes(catalogos.condicionesIva);
 }
 
 function openInvoiceModal(id?: number): void {
+  if (actionBusy || invoiceBusy) return;
   const modal = byId<HTMLDialogElement>('factura-modal');
+  byId('factura-modal-title').textContent = id ? 'Editar comprobante' : 'Nuevo comprobante';
   const frame = byId<HTMLIFrameElement>('factura-modal-frame');
   frame.src = id ? `/factura-form.html?modal=1&id=${encodeURIComponent(id)}` : '/factura-form.html?modal=1';
   modal.showModal();
 }
 
-function closeInvoiceModal(reload = false): void {
+function closeInvoiceModal(reload = false, message?: string): void {
+  if (invoiceBusy) return;
   const modal = byId<HTMLDialogElement>('factura-modal');
   modal.close();
   byId<HTMLIFrameElement>('factura-modal-frame').src = 'about:blank';
-  if (reload) void loadInvoices();
+  if (reload) void reloadWithConfirmation(message);
 }
 
 function confirmAction(message: string, confirmLabel = 'Confirmar'): Promise<boolean> {
@@ -106,26 +124,31 @@ function confirmAction(message: string, confirmLabel = 'Confirmar'): Promise<boo
   byId<HTMLElement>('confirm-modal-message').textContent = message;
   const ok = byId<HTMLButtonElement>('confirm-modal-ok');
   ok.textContent = confirmLabel;
+  ok.className = `btn ${confirmLabel === 'Reactivar' ? 'btn-success' : 'btn-danger'}`;
   return new Promise(resolve => {
     const finish = (value: boolean): void => {
       ok.removeEventListener('click', onOk);
       cancel.removeEventListener('click', onCancel);
+      modal.removeEventListener('cancel', onEscape);
       modal.close();
       resolve(value);
     };
     const cancel = byId<HTMLButtonElement>('confirm-modal-cancel');
     const onOk = (): void => finish(true);
     const onCancel = (): void => finish(false);
+    const onEscape = (event: Event): void => { event.preventDefault(); finish(false); };
+    modal.addEventListener('cancel', onEscape);
     ok.addEventListener('click', onOk);
     cancel.addEventListener('click', onCancel);
     modal.showModal();
+    cancel.focus();
   });
 }
 
 function statusPill(status: string | null | undefined): string {
   const value = String(status || 'SIN ESTADO').toUpperCase();
   let className = 'pill';
-  if (value === 'ANULADA') className += ' pill-anulada';
+  if (['ANULADA', 'RECHAZADA', 'ERROR_AFIP'].includes(value)) className += ' pill-anulada';
   else if (value === 'PAGADA') className += ' pill-pagada';
   else if (value === 'PENDIENTE') className += ' pill-pendiente';
   return `<span class="${className}">${escapeHtml(value)}</span>`;
@@ -142,23 +165,46 @@ function renderInvoices(pageResponse: PageResponse<FacturaResumen>): void {
 
   for (const invoice of pageResponse.content) {
     const row = document.createElement('tr');
-    row.innerHTML = `<td><strong>${escapeHtml(invoice.numeroFactura ?? '—')}</strong></td>
+    const shortNumber = invoice.numeroFactura == null ? `Intento #${invoice.id}` : `${invoice.comprobanteInterno ? 'X-' : ''}${invoice.numeroFactura}`;
+    const reference = invoice.referenciaListado ?? shortNumber;
+    row.innerHTML = `<td class="document-reference"><strong title="${escapeHtml(invoiceReference(invoice))}">${escapeHtml(reference)}</strong></td>
       <td>${formatDate(invoice.fechaEmision)}</td>
       <td>${escapeHtml(invoice.clienteDenominacion || 'Consumidor final')}</td>
       <td>${escapeHtml(invoice.condicionIva || '—')}</td>
       <td>${escapeHtml(invoice.puntoVentaDescripcion || '—')}</td>
-      <td>${statusPill(invoice.estado)}</td>
+      <td>${statusPill(invoice.estado)}${invoice.receptorPrueba ? '<div class="muted">Receptor historico sin identificar</div>' : ''}</td>
       <td class="text-right"><strong>${currency(invoice.importeTotal)}</strong></td>
       <td class="text-center">${Number(invoice.cantidadItems ?? 0)}</td>
       <td><div class="actions"></div></td>`;
     const actions = row.querySelector<HTMLDivElement>('.actions');
     if (actions && invoice.id !== undefined && invoice.id !== null) {
       const isCancelled = String(invoice.estado).toUpperCase() === 'ANULADA';
-      const edit = document.createElement('button');
-      edit.className = 'btn btn-secondary btn-small';
-      edit.textContent = 'Editar';
-      edit.addEventListener('click', () => { openInvoiceModal(Number(invoice.id)); });
-      actions.append(edit);
+      const receipt = document.createElement('a');
+      receipt.className = 'btn btn-secondary btn-small';
+      receipt.textContent = 'Ver';
+      receipt.href = getComprobanteFacturaUrl(Number(invoice.id));
+      receipt.target = '_blank';
+      receipt.rel = 'noopener';
+      receipt.title = `Ver ${invoiceReference(invoice)}`;
+      actions.append(receipt);
+      if (invoice.motivoRechazo) {
+        const reason = document.createElement('button');
+        reason.className = 'btn btn-secondary btn-small';
+        reason.textContent = 'Motivo ARCA';
+        reason.addEventListener('click', () => {
+          byId<HTMLElement>('arca-result-message').textContent = invoice.motivoRechazo ?? '';
+          byId<HTMLDialogElement>('arca-result-modal').showModal();
+        });
+        actions.append(reason);
+      }
+
+      if (!['AUTORIZADA', 'ERROR_AFIP', 'ANULADA'].includes(invoice.estado) && !invoice.tieneCae && !invoice.comprobanteDisponible && invoice.editable !== false) {
+        const edit = document.createElement('button');
+        edit.className = 'btn btn-secondary btn-small';
+        edit.textContent = 'Editar';
+        edit.addEventListener('click', () => { openInvoiceModal(Number(invoice.id)); });
+        actions.append(edit);
+      }
 
       if (isCancelled) {
         const reactivate = document.createElement('button');
@@ -177,7 +223,7 @@ function renderInvoices(pageResponse: PageResponse<FacturaResumen>): void {
     tbody.append(row);
   }
 
-  byId<HTMLSpanElement>('resultado-texto').textContent = `${pageResponse.totalElements} resultado${pageResponse.totalElements === 1 ? '' : 's'} (página ${currentPage + 1} de ${totalPages})`;
+  byId<HTMLSpanElement>('resultado-texto').textContent = `${pageResponse.totalElements} resultado${pageResponse.totalElements === 1 ? '' : 's'} (página ${totalPages ? currentPage + 1 : 0} de ${totalPages})`;
   byId<HTMLElement>('stat-cantidad').textContent = pageResponse.totalElements.toLocaleString('es-AR');
   byId<HTMLElement>('stat-total').textContent = currency(pageResponse.content.reduce((sum, invoice) => sum + Number(invoice.importeTotal || 0), 0));
 
@@ -272,10 +318,11 @@ function setupSorting(): void {
   });
 }
 
-async function loadInvoices(preserveScrollPosition = false): Promise<void> {
+async function loadInvoices(preserveScrollPosition = false): Promise<boolean> {
   const scrollY = window.scrollY;
   const requestId = ++loadRequestId;
   clearAlert();
+  if (!validateFilters()) return false;
   byId<HTMLElement>('api-status').textContent = 'Consultando backend…';
   if (!preserveScrollPosition) {
     tbody.innerHTML = '<tr><td colspan="9" class="loading">Cargando facturas…</td></tr>';
@@ -284,49 +331,74 @@ async function loadInvoices(preserveScrollPosition = false): Promise<void> {
     const baseParams = readFilters();
     const options = { page: currentPage, size: PAGE_SIZE, sortBy, sortDir };
     const pageResponse = await getFacturas(baseParams.toString(), options);
-    if (requestId !== loadRequestId) return;
+    if (requestId !== loadRequestId) return false;
+    if (pageResponse.number >= pageResponse.totalPages && pageResponse.number > 0) {
+      currentPage = Math.max(0, pageResponse.totalPages - 1);
+      return await loadInvoices(preserveScrollPosition);
+    }
     renderInvoices(pageResponse);
     byId<HTMLElement>('api-status').textContent = '● Backend conectado';
-    byId<HTMLElement>('api-status').style.color = '#087443';
+    byId<HTMLElement>('api-status').style.color = 'var(--success)';
     if (preserveScrollPosition) {
       window.scrollTo(0, scrollY);
     }
+    return true;
   } catch (error: unknown) {
-    if (requestId !== loadRequestId) return;
+    if (requestId !== loadRequestId) return false;
     tbody.innerHTML = '<tr><td colspan="9" class="loading">No se pudieron cargar las facturas.</td></tr>';
+    paginationNav.replaceChildren();
+    byId<HTMLElement>('stat-cantidad').textContent = '\u2014';
+    byId<HTMLElement>('stat-total').textContent = '\u2014';
     byId<HTMLElement>('resultado-texto').textContent = 'Error de conexión';
     byId<HTMLElement>('api-status').textContent = '● Backend no disponible';
-    byId<HTMLElement>('api-status').style.color = '#b42318';
+    byId<HTMLElement>('api-status').style.color = 'var(--danger)';
     showAlert(`No se pudo conectar con ${FACTURAS_API}. Verificá que Spring Boot esté corriendo y que hayas aplicado los cambios de integración. Detalle: ${error instanceof Error ? error.message : String(error)}`);
-    if (preserveScrollPosition) {
-      window.scrollTo(0, scrollY);
-    }
+    return false;
   }
 }
 
-async function cancelInvoice(invoice: FacturaResumen): Promise<void> {
-  if (!await confirmAction(`¿Anular la factura N.º ${invoice.numeroFactura}? Esta acción es lógica y no elimina el registro.`, 'Anular')) return;
-  try {
-    await anularFactura(invoice.id);
-    showAlert(`Factura ${invoice.numeroFactura} anulada correctamente.`, 'success');
-    currentPage = 0;
-    await loadInvoices();
-  } catch (error: unknown) {
-    showAlert(`No se pudo anular la factura: ${error instanceof Error ? error.message : String(error)}`);
+function invoiceReference(invoice: FacturaResumen): string {
+  if (invoice.referenciaCompleta) return invoice.referenciaCompleta;
+  const number = invoice.numeroFactura == null ? `intento #${invoice.id}` : `${invoice.comprobanteInterno ? 'X-' : ''}${invoice.puntoVentaNumero ? `${String(invoice.puntoVentaNumero).padStart(5, '0')}-` : ''}${invoice.numeroFactura}`;
+  return `${number}${invoice.puntoVentaDescripcion ? ` (${invoice.puntoVentaDescripcion})` : ''}`;
+}
+
+async function reloadWithConfirmation(message?: string): Promise<void> {
+  const loaded = await loadInvoices();
+  if (!message) return;
+  if (loaded) showAlert(message, 'success');
+  else {
+    const detail = byId('alerta').textContent ?? '';
+    showAlert(`${message} No se pudo actualizar el listado. ${detail}`);
   }
 }
 
-async function reactivateInvoice(invoice: FacturaResumen): Promise<void> {
-  if (!await confirmAction(`¿Reactivar la factura N.º ${invoice.numeroFactura}? Su estado volverá a EMITIDA.`, 'Reactivar')) return;
+async function changeInvoiceState(invoice: FacturaResumen, reactivate: boolean): Promise<void> {
+  if (actionBusy) return;
+  actionBusy = true;
+  let controls: Array<[HTMLButtonElement, boolean]> = [];
   try {
-    await reactivarFactura(invoice.id);
-    showAlert(`Factura ${invoice.numeroFactura} reactivada correctamente.`, 'success');
+    const question = reactivate
+      ? `¿Reactivar el comprobante ${invoiceReference(invoice)}? Se recuperara el estado anterior a la anulacion, conservando el resultado de ARCA.`
+      : `¿Anular el comprobante ${invoiceReference(invoice)}? Es una baja local; no elimina el registro ni revoca un CAE en ARCA.`;
+    if (!await confirmAction(question, reactivate ? 'Reactivar' : 'Anular')) return;
+    controls = [...tbody.querySelectorAll<HTMLButtonElement>('button'), byId<HTMLButtonElement>('btn-nueva-factura')]
+      .map(control => [control, control.disabled]);
+    controls.forEach(([control]) => { control.disabled = true; });
+    if (reactivate) await reactivarFactura(invoice.id);
+    else await anularFactura(invoice.id);
     currentPage = 0;
-    await loadInvoices();
+    await reloadWithConfirmation(`Factura ${invoiceReference(invoice)} ${reactivate ? 'reactivada' : 'anulada'} correctamente.`);
   } catch (error: unknown) {
-    showAlert(`No se pudo reactivar la factura: ${error instanceof Error ? error.message : String(error)}`);
+    showAlert(`No se pudo ${reactivate ? 'reactivar' : 'anular'} la factura: ${error instanceof Error ? error.message : String(error)}`);
+  } finally {
+    controls.forEach(([control, disabled]) => { control.disabled = disabled; });
+    actionBusy = false;
   }
 }
+
+async function cancelInvoice(invoice: FacturaResumen): Promise<void> { await changeInvoiceState(invoice, false); }
+async function reactivateInvoice(invoice: FacturaResumen): Promise<void> { await changeInvoiceState(invoice, true); }
 
 form.addEventListener('submit', event => {
   event.preventDefault();
@@ -336,17 +408,28 @@ form.addEventListener('submit', event => {
 });
 byId<HTMLButtonElement>('btn-limpiar').addEventListener('click', () => {
   form.reset();
+  byId<HTMLInputElement>('clienteId').value = '';
   currentPage = 0;
   void loadInvoices();
 });
 byId<HTMLButtonElement>('btn-nueva-factura').addEventListener('click', () => openInvoiceModal());
 byId<HTMLButtonElement>('btn-cerrar-factura-modal').addEventListener('click', () => closeInvoiceModal());
+byId<HTMLDialogElement>('factura-modal').addEventListener('cancel', event => {
+  if (invoiceBusy) event.preventDefault();
+  else byId<HTMLIFrameElement>('factura-modal-frame').src = 'about:blank';
+});
 byId<HTMLDialogElement>('factura-modal').addEventListener('click', event => {
   if (event.target === event.currentTarget) closeInvoiceModal();
 });
 window.addEventListener('message', event => {
+  if (event.origin !== window.location.origin) return;
   if (event.source !== byId<HTMLIFrameElement>('factura-modal-frame').contentWindow) return;
-  if (event.data?.type === 'factura-modal-close') closeInvoiceModal(Boolean(event.data.reload));
+  if (event.data?.type === 'factura-modal-busy') {
+    invoiceBusy = Boolean(event.data.busy);
+    byId<HTMLButtonElement>('btn-cerrar-factura-modal').disabled = invoiceBusy;
+  }
+  if (event.data?.type === 'factura-modal-reload') void loadInvoices();
+  if (event.data?.type === 'factura-modal-close') closeInvoiceModal(Boolean(event.data.reload), typeof event.data.message === 'string' ? event.data.message : undefined);
 });
 
 for (const [selector, path] of [['a[href="/api/facturas/pdf"]', '/pdf'], ['a[href="/api/facturas/excel"]', '/excel']] as const) {
@@ -365,9 +448,14 @@ for (const [selector, path] of [['a[href="/api/facturas/pdf"]', '/pdf'], ['a[hre
 }
 
 setupSorting();
-void loadInvoices();
+let initialConfirmation: string | undefined;
+try {
+  initialConfirmation = sessionStorage.getItem('facturacion-confirmation') ?? undefined;
+  sessionStorage.removeItem('facturacion-confirmation');
+} catch { /* Almacenamiento no disponible. */ }
+void reloadWithConfirmation(initialConfirmation);
 void loadClientFilter().catch((error: unknown) => {
   byId<HTMLElement>('api-status').textContent = '● No se cargaron clientes';
-  byId<HTMLElement>('api-status').style.color = '#b42318';
-  showAlert(`No se pudieron cargar los clientes para filtrar: ${error instanceof Error ? error.message : String(error)}`);
+  byId<HTMLElement>('api-status').style.color = 'var(--danger)';
+  showAlert(`No se pudieron cargar los catálogos de filtros: ${error instanceof Error ? error.message : String(error)}`);
 });
