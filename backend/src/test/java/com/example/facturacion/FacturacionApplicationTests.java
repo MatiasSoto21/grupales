@@ -40,6 +40,74 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 })
 @AutoConfigureMockMvc
 class FacturacionApplicationTests {
+    @jakarta.persistence.PersistenceContext private jakarta.persistence.EntityManager em;
+
+    @Test
+    @Transactional
+    void fabricatedSeedCaeIsRemovedIdempotentlyWithoutChangingAmountsOrCancellation() {
+        var sample = facturaVentaRepository.findAll().stream().filter(f -> f.getNumero() != null).findFirst().orElseThrow();
+        sample.setNumero(1001L);
+        sample.setObservaciones("Factura de prueba");
+        sample.setEstado("AUTORIZADA"); sample.setResultadoAfip("A"); sample.setCae("70000000001001");
+        sample.setCaeFechaVencimiento(java.time.LocalDate.now());
+        sample.setTipoComprobanteAfip(null); sample.setAmbienteAfip(null); sample.setFechaSolicitudAfip(null);
+        sample.setEmisorCuitAfip(null); sample.setComprobanteAfipDisponible(false);
+        sample.setOrigenComprobante(null); sample.setComprobanteFiscalDerivado(null);
+        facturaVentaRepository.saveAndFlush(sample);
+        Long id = sample.getId(), version = sample.getVersion();
+        double total = sample.getImporteTotal(); var date = sample.getFechaEmision();
+        initializer.repararAutorizacionesSimuladas(); em.clear();
+        sample = facturaVentaRepository.findById(id).orElseThrow();
+        Assertions.assertEquals("EMITIDA", sample.getEstado()); Assertions.assertEquals("SIMULADO", sample.getResultadoAfip());
+        Assertions.assertNull(sample.getCae()); Assertions.assertNull(sample.getCaeFechaVencimiento());
+        Assertions.assertEquals(total, sample.getImporteTotal()); Assertions.assertEquals(date, sample.getFechaEmision());
+        Assertions.assertEquals(version + 1, sample.getVersion());
+        initializer.repararAutorizacionesSimuladas(); em.clear();
+        sample = facturaVentaRepository.findById(id).orElseThrow();
+        Assertions.assertEquals(version + 1, sample.getVersion());
+        sample.setEstado("ANULADA"); sample.setEstadoAnteriorAnulacion("AUTORIZADA");
+        sample.setResultadoAfip("A"); sample.setCae("70000000001001");
+        var cancelledDate = java.time.LocalDate.now(); sample.setFechaAnulacion(cancelledDate);
+        facturaVentaRepository.saveAndFlush(sample);
+        initializer.repararAutorizacionesSimuladas(); em.clear();
+        sample = facturaVentaRepository.findById(id).orElseThrow();
+        Assertions.assertEquals("ANULADA", sample.getEstado()); Assertions.assertEquals(cancelledDate, sample.getFechaAnulacion());
+        Assertions.assertEquals("EMITIDA", sample.estadoAlReactivar());
+    }
+
+    @Test
+    @Transactional
+    void actualFiscalEvidenceIsNeverRemovedBySampleRepair() {
+        var sample = facturaVentaRepository.findAll().stream().filter(f -> f.getNumero() != null).findFirst().orElseThrow();
+        sample.setNumero(1001L); sample.setObservaciones("Factura de prueba"); sample.setEstado("AUTORIZADA");
+        sample.setResultadoAfip("A"); sample.setCae("70000000001001"); sample.setTipoComprobanteAfip(1);
+        sample.setAmbienteAfip("HOMOLOGACION"); sample.setFechaSolicitudAfip(java.time.Instant.now());
+        facturaVentaRepository.saveAndFlush(sample); Long id = sample.getId();
+        initializer.repararAutorizacionesSimuladas(); em.clear();
+        sample = facturaVentaRepository.findById(id).orElseThrow();
+        Assertions.assertEquals("AUTORIZADA", sample.getEstado()); Assertions.assertEquals("70000000001001", sample.getCae());
+    }
+
+    @Test
+    @Transactional
+    void initialSampleUsesNormalCreationAndCannotBeSubmittedTwice() throws Exception {
+        var sample = facturaVentaRepository.findAll().stream().filter(f -> !f.getDetalles().isEmpty()).findFirst().orElseThrow();
+        sample.setNumero(1001L); sample.setObservaciones("Factura de prueba"); sample.setEstado("EMITIDA");
+        sample.setResultadoAfip("SIMULADO"); sample.setCae(null); sample.setCaeFechaVencimiento(null);
+        sample.setTipoComprobanteAfip(null); sample.setAmbienteAfip(null); sample.setFechaSolicitudAfip(null);
+        sample.setEmisorCuitAfip(null); sample.setComprobanteAfipDisponible(false); sample.setCliente(null);
+        sample.setCondicionIva(condicionIvaRepository.findAll().stream().filter(c -> c.getCodigoAfip() == 5).findFirst().orElseThrow());
+        sample.setOrigenComprobante(null); sample.setComprobanteFiscalDerivado(null);
+        facturaVentaRepository.saveAndFlush(sample); Long id = sample.getId();
+        var result = facturaService.emitirMuestraInicial(id);
+        Assertions.assertEquals(id, result.getId()); Assertions.assertEquals("AUTORIZADA", result.getEstado());
+        Assertions.assertEquals("A", result.getResultadoAfip()); Assertions.assertEquals(9001L, result.getNumero());
+        Assertions.assertNotNull(result.getFechaSolicitudAfip()); Assertions.assertTrue(result.isComprobanteAfipDisponible());
+        Assertions.assertTrue(result.getDetalles().stream().allMatch(d -> d.getImporteIva() > 0));
+        Assertions.assertNotNull(facturaService.obtenerComprobante(id).cae());
+        Assertions.assertThrows(ResponseStatusException.class, () -> facturaService.emitirMuestraInicial(id));
+    }
+
     @org.springframework.boot.test.mock.mockito.MockBean
     private com.example.facturacion.services.AfipWsaaService wsaa;
     @org.springframework.boot.test.mock.mockito.MockBean
@@ -278,6 +346,10 @@ class FacturacionApplicationTests {
 						1,
 						0)));
 
+        // Own the editable fixture instead of depending on the state of a seeded invoice.
+        request.setComprobanteInterno(true);
+        existing = facturaService.crearFactura(request);
+        request.setComprobanteInterno(false);
 		MvcResult createdResult = mockMvc.perform(post("/api/facturas")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(objectMapper.writeValueAsString(request)))
@@ -289,6 +361,7 @@ class FacturacionApplicationTests {
 		FacturaReporteDTO created = objectMapper.readValue(
 				createdResult.getResponse().getContentAsString(),
 				FacturaReporteDTO.class);
+        request.setComprobanteInterno(true);
 		String requestJson = objectMapper.writeValueAsString(request);
 
 		mockMvc.perform(put("/api/facturas/{id}", existing.getId())

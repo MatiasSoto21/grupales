@@ -140,6 +140,17 @@ Si ambos equipos usan la misma identidad fiscal de homologación, comparten el m
 
 ## Comprobación inicial
 
+Los ejemplos del inicializador son datos locales (`SIMULADO`), sin CAE ni autorización. El arranque corrige únicamente los CAE ficticios de la carga antigua, conservando sus importes, fechas y anulaciones. `RECHAZADA` requiere un rechazo real de WSFE.
+
+Para enviar expresamente los ejemplos activos a **ARCA homologación**, después de configurar las credenciales, desde `backend`:
+
+```powershell
+.\mvnw.cmd package -DskipTests
+java -jar target/facturacion-0.0.1-SNAPSHOT.jar --spring.main.web-application-type=none --facturacion.datos-iniciales.emitir-arca=true
+```
+
+Esta carga usa el mismo servicio que el formulario: conserva los IDs de las muestras, clientes y líneas, aplica los precios e IVA actuales y usa la fecha argentina del servidor y la numeración real de ARCA. Sustituye exclusivamente los ejemplos locales activos sin emisión previa; no envía las muestras anuladas. Cada resultado se confirma en su propia transacción. No vuelve a enviar ejemplos procesados y se detiene ante `ERROR_AFIP`. El arranque normal nunca habilita esta carga. Los CUIT ficticios y puntos de venta no habilitados pueden producir rechazos reales; solamente la autorización confirmada permite CAE y, con datos completos del emisor, QR.
+
 1. Ver el listado y confirmar la conexión con el backend.
 2. Crear un X con un producto y abrir su PDF.
 3. Para A/B, configurar las credenciales locales de homologacion y revisar cliente, IVA, punto de venta, productos y fechas antes de confirmar la emision.

@@ -9,6 +9,10 @@ import java.util.Optional;
 
 @Repository
 public interface FacturaVentaRepository extends JpaRepository<FacturaVenta, Long> {
+    @Query("SELECT f.id FROM FacturaVenta f WHERE f.estado = 'EMITIDA' AND f.resultadoAfip = 'SIMULADO' "
+            + "AND f.observaciones = 'Factura de prueba' AND f.numero BETWEEN 1001 AND 1050 "
+            + "AND f.cae IS NULL AND f.tipoComprobanteAfip IS NULL AND f.fechaSolicitudAfip IS NULL ORDER BY f.id")
+    java.util.List<Long> buscarMuestrasInicialesSinEmitir();
     Optional<FacturaVenta> findTopByOrderByNumeroDesc();
 
     @Query("SELECT COALESCE(MAX(f.numero), 0) FROM FacturaVenta f")

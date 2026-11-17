@@ -14,6 +14,7 @@ import java.util.Arrays;
 import java.util.List;
 
 @Component
+@org.springframework.core.annotation.Order(0)
 public class DataInitializer implements CommandLineRunner {
 
     @PersistenceContext
@@ -29,9 +30,27 @@ public class DataInitializer implements CommandLineRunner {
     private com.example.facturacion.repositories.ArticuloRepository articulosRepository;
 
     private void normalizarEstadosFiscales() {
+        repararAutorizacionesSimuladas();
         // Repair the former reactivation bug using confirmed fiscal evidence only.
         em.createQuery("UPDATE FacturaVenta f SET f.estado = 'AUTORIZADA' WHERE f.estado = 'EMITIDA' AND f.resultadoAfip = 'A' AND f.cae IS NOT NULL AND f.cae <> ''").executeUpdate();
         em.createQuery("UPDATE FacturaVenta f SET f.estado = 'RECHAZADA' WHERE f.estado = 'EMITIDA' AND f.resultadoAfip = 'R' AND (f.cae IS NULL OR f.cae = '')").executeUpdate();
+    }
+
+    /** Remove only the fabricated authorization signature from the original sample invoices. */
+    void repararAutorizacionesSimuladas() {
+        em.createQuery("UPDATE FacturaVenta f SET f.cae = null, f.caeFechaVencimiento = null, "
+                + "f.resultadoAfip = 'SIMULADO', f.estado = CASE WHEN f.estado = 'ANULADA' THEN 'ANULADA' ELSE 'EMITIDA' END, "
+                + "f.estadoAnteriorAnulacion = CASE WHEN f.estado = 'ANULADA' THEN 'EMITIDA' ELSE f.estadoAnteriorAnulacion END, "
+                + "f.version = f.version + 1 "
+                + "WHERE f.numero BETWEEN 1001 AND 1050 "
+                + "AND f.observaciones IN ('Factura de prueba', 'Factura anulada de prueba') "
+                + "AND f.cae = CONCAT('7000000000', CAST(f.numero AS string)) AND f.resultadoAfip = 'A' "
+                + "AND f.estado IN ('EMITIDA', 'AUTORIZADA', 'ANULADA') "
+                + "AND f.tipoComprobanteAfip IS NULL AND f.ambienteAfip IS NULL "
+                + "AND f.fechaSolicitudAfip IS NULL AND f.emisorCuitAfip IS NULL "
+                + "AND f.comprobanteAfipDisponible = false "
+                + "AND f.origenComprobante IS NULL AND f.comprobanteFiscalDerivado IS NULL")
+                .executeUpdate();
     }
 
     // =========================================================
@@ -667,6 +686,8 @@ public class DataInitializer implements CommandLineRunner {
         f.setCondicionIva(condicionIva);
         f.setTipoMoneda(moneda);
         f.setEstado(estado);
+        // Examples are local data, never an authorization or a rejection from ARCA.
+        f.setResultadoAfip("SIMULADO");
 
         double total = 0;
 
@@ -705,6 +726,7 @@ public class DataInitializer implements CommandLineRunner {
         f.setImporteTotal(total);
 
         if ("ANULADA".equals(estado)) {
+            f.setEstadoAnteriorAnulacion("EMITIDA");
             f.setImporteCobrado(total);
             f.setImporteSaldo(0);
             f.setFechaAnulacion(fecha.plusDays(1));

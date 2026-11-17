@@ -488,6 +488,38 @@ public class FacturaService {
     }
 
     private FacturaVenta crearFacturaConFechas(FacturaRequestDTO request, LocalDate fechaOperacion, LocalDate fechaFiscal) {
+        return crearFacturaConFechas(request, fechaOperacion, fechaFiscal, new FacturaVenta());
+    }
+
+    /** Explicit one-time homologation of untouched local examples, using the ordinary creation flow. */
+    @Transactional
+    public FacturaVenta emitirMuestraInicial(Long id) {
+        FacturaVenta muestra = facturaVentaRepository.buscarPorIdConBloqueo(id)
+                .orElseThrow(() -> new IllegalArgumentException("No existe la muestra inicial"));
+        if (!"EMITIDA".equals(muestra.getEstado()) || !"SIMULADO".equals(muestra.getResultadoAfip())
+                || !"Factura de prueba".equals(muestra.getObservaciones())
+                || muestra.getNumero() == null || muestra.getNumero() < 1001 || muestra.getNumero() > 1050
+                || muestra.getCae() != null || muestra.getTipoComprobanteAfip() != null
+                || muestra.getAmbienteAfip() != null || muestra.getFechaSolicitudAfip() != null
+                || muestra.isComprobanteAfipDisponible() || muestra.getEmisorCuitAfip() != null
+                || muestra.getOrigenComprobante() != null || muestra.getComprobanteFiscalDerivado() != null)
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "La muestra ya fue procesada o no es un ejemplo local sin emitir");
+        var detalles = muestra.getDetalles().stream().map(d -> new FacturaDetalleRequestDTO(
+                d.getListaPrecioArticulo().getArticulo().getId(), d.getListaPrecioArticulo().getId(),
+                d.getDescripcion(), d.getCantidad(), d.getPorcentajeBonificacion())).toList();
+        var request = new FacturaRequestDTO(null, null,
+                muestra.getCliente() == null ? null : muestra.getCliente().getId(), muestra.getCondicionIva().getId(),
+                muestra.getTipoMoneda().getId(), muestra.getPuntoVenta().getId(), null,
+                "Carga inicial enviada a ARCA homologacion", detalles);
+        muestra.getDetalles().clear();
+        muestra.setNumero(null);
+        muestra.setResultadoAfip(null);
+        LocalDate hoy = fechas.hoy();
+        return crearFacturaConFechas(request, hoy, hoy, muestra);
+    }
+
+    private FacturaVenta crearFacturaConFechas(FacturaRequestDTO request, LocalDate fechaOperacion, LocalDate fechaFiscal,
+            FacturaVenta factura) {
 
         if (request == null) {
             throw new IllegalArgumentException(
@@ -540,7 +572,6 @@ public class FacturaService {
                         "No existe el usuario admin para la auditoría"));
 
         // 2. Construir la cabecera de la factura.
-        FacturaVenta factura = new FacturaVenta();
         LocalDate hoy = fechas.hoy();
 
         factura.setFechaEmision(fechaFiscal);
