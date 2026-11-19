@@ -15,6 +15,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @SpringBootTest(classes = FacturacionApplication.class, properties = {
+    "facturacion.datos-iniciales.emitir-arca=false",
     "debug=false", "facturacion.arca-test.enabled=false", "logging.level.root=WARN"
 })
 @AutoConfigureMockMvc

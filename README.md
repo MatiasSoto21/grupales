@@ -1,4 +1,4 @@
-﻿# Facturación ARCA — proyecto académico
+# Facturación ARCA — proyecto académico
 
 Aplicación con Java 21, Spring Boot, PostgreSQL y frontend HTML/CSS/TypeScript con Express. Integra ARCA en HOMOLOGACION y permite comprobantes A/B y documentos X internos.
 
@@ -140,16 +140,16 @@ Si ambos equipos usan la misma identidad fiscal de homologación, comparten el m
 
 ## Comprobación inicial
 
-Los ejemplos del inicializador son datos locales (`SIMULADO`), sin CAE ni autorización. El arranque corrige únicamente los CAE ficticios de la carga antigua, conservando sus importes, fechas y anulaciones. `RECHAZADA` requiere un rechazo real de WSFE.
+El inicializador prepara datos locales (`SIMULADO`), sin CAE ni autorización inventados. Al terminar esa transacción, el arranque normal envía los ejemplos activos pendientes a ARCA homologación mediante el mismo servicio del formulario. Cada uno queda `AUTORIZADA`, `RECHAZADA` o `ERROR_AFIP` según la respuesta real; `RECHAZADA` requiere un rechazo real de WSFE. También se corrigen únicamente los CAE ficticios de la carga antigua antes de procesarla.
 
-Para enviar expresamente los ejemplos activos a **ARCA homologación**, después de configurar las credenciales, desde `backend`:
+Para ejecutar solamente esa carga, sin levantar otro servidor HTTP, después de configurar las credenciales, desde `backend`:
 
 ```powershell
 .\mvnw.cmd package -DskipTests
 java -jar target/facturacion-0.0.1-SNAPSHOT.jar --spring.main.web-application-type=none --facturacion.datos-iniciales.emitir-arca=true
 ```
 
-Esta carga usa el mismo servicio que el formulario: conserva los IDs de las muestras, clientes y líneas, aplica los precios e IVA actuales y usa la fecha argentina del servidor y la numeración real de ARCA. Sustituye exclusivamente los ejemplos locales activos sin emisión previa; no envía las muestras anuladas. Cada resultado se confirma en su propia transacción. No vuelve a enviar ejemplos procesados y se detiene ante `ERROR_AFIP`. El arranque normal nunca habilita esta carga. Los CUIT ficticios y puntos de venta no habilitados pueden producir rechazos reales; solamente la autorización confirmada permite CAE y, con datos completos del emisor, QR.
+Esta carga conserva los IDs de las muestras, clientes y líneas, aplica los precios e IVA actuales y usa la fecha argentina del servidor y la numeración real de ARCA. Sustituye exclusivamente los ejemplos locales activos sin emisión previa; no envía las muestras anuladas. Cada resultado se confirma en su propia transacción. No vuelve a enviar ejemplos procesados y se detiene ante `ERROR_AFIP`. Para desactivar la carga se puede configurar `facturacion.datos-iniciales.emitir-arca=false`; todas las pruebas de contexto la desactivan expresamente para evitar emisiones reales. Los CUIT ficticios y puntos de venta no habilitados pueden producir rechazos reales; solamente la autorización confirmada permite CAE y, con datos completos del emisor, QR.
 
 1. Ver el listado y confirmar la conexión con el backend.
 2. Crear un X con un producto y abrir su PDF.
@@ -185,3 +185,13 @@ Las pruebas ordinarias no emiten nuevos comprobantes en ARCA. Los escenarios liv
 Validacion realizada: **7 pruebas de logica/API/proxy y 64 escenarios de navegador aprobados**, incluyendo temas claro/oscuro, movil, respuestas tardias, errores y X a A/B. Ademas se verificaron consultas de lectura del backend, filtros invalidos y archivos PDF/Excel. Los guardados del navegador se probaron con respuestas simuladas; esta revision no emitio comprobantes reales. No se cambiaron el modelo ni las dependencias.
 
 La configuracion de VS Code y las guias personales se conservan localmente y estan excluidas por .gitignore. Las preferencias del editor no modifican el modelo ni las dependencias.
+
+## Validación del arranque y publicación (18/11/2026)
+
+El envío de muestras pendientes está habilitado por defecto mediante EmisionMuestrasInicialesRunner, después de DataInitializer. El diagnóstico opcional facturacion.arca-test.enabled es independiente y permanece desactivado por defecto. Para iniciar sin enviar muestras, agregar --facturacion.datos-iniciales.emitir-arca=false al comando del backend.
+
+Las pruebas del runner verifican la activación predeterminada, la desactivación explícita, la continuidad tras un rechazo confirmado, la detención ante ERROR_AFIP y la ausencia de reenvío de muestras ya procesadas. La detención corresponde al lote actual: un arranque posterior solo considera las muestras que todavía siguen pendientes y no reintenta el registro incierto.
+
+Verificación realizada el 18/11/2026: Maven finalizó con 106 pruebas, sin fallos ni errores y con una omitida; npm test compiló TypeScript y aprobó las 7 pruebas. Las pruebas de contexto desactivan el envío inicial y utilizan respuestas fiscales simuladas. Los 64 escenarios de navegador corresponden a la revisión del 14/11/2026; no se repitieron en esta verificación.
+
+Se publican únicamente fuentes, pruebas y documentación compartida. Las credenciales ARCA, la configuración de PostgreSQL, las guías personales y los artefactos generados permanecen locales e ignorados por Git.

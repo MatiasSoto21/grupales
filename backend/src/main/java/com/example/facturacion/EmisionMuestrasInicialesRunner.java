@@ -7,10 +7,10 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
-/** Never enabled by an ordinary startup. Each example commits its own real ARCA result. */
+/** Submit pending initial examples once, committing each real ARCA result separately. */
 @Component
 @Order(1)
-@ConditionalOnProperty(name = "facturacion.datos-iniciales.emitir-arca", havingValue = "true")
+@ConditionalOnProperty(name = "facturacion.datos-iniciales.emitir-arca", havingValue = "true", matchIfMissing = true)
 public class EmisionMuestrasInicialesRunner implements CommandLineRunner {
     private final FacturaVentaRepository facturas;
     private final FacturaService servicio;

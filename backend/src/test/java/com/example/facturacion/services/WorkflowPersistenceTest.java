@@ -19,6 +19,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 @EnabledIfSystemProperty(named = "workflow.report", matches = ".+")
 @SpringBootTest(classes = FacturacionApplication.class, properties = {
+    "facturacion.datos-iniciales.emitir-arca=false",
     "debug=false", "facturacion.arca-test.enabled=false", "logging.level.root=WARN"
 })
 class WorkflowPersistenceTest {

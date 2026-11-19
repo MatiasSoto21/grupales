@@ -288,7 +288,7 @@ getFacturas('', {
 - Guard cancellation/reactivation against repeated requests; focus Cancel in the confirmation. Empty listings report page 0 of 0.
 
 ## Publication and local configuration
-- The repository is https://github.com/MatiasSoto21/grupales; publish the reviewed source to main without force-pushing or changing unrelated repositories. Verify the Git root before staging: extracted project copies may inherit a Desktop Git repository.
+- The repository is https://github.com/MatiasSoto21/grupales. Do not commit or push to main unless the user explicitly requests it. Keep fixes local until then. Verify the Git root before staging: extracted project copies may inherit a Desktop Git repository. Never force-push or change unrelated repositories.
 - Never commit PostgreSQL passwords, private ARCA keys, local certificates/configuration, WSAA tickets, node_modules, target, dist, logs or test artifacts. Keep db-local.properties ignored; application.properties accepts DB_PASSWORD.
 - Keep .vscode/settings.json local and ignored. Its agreed preferences disable null annotation analysis and hide constructor/repository/version recommendations; they do not change the model or dependencies.
 - Last frontend validation (2026-11-14): npm test passed 7 checks; npm run test:e2e -- invoices.spec.ts passed 64 browser scenarios. Saves/emissions use intercepted responses. Read-only API checks covered catalogs, pagination, invalid filters and PDF/Excel; no real invoice was emitted in this validation.
@@ -297,3 +297,9 @@ getFacturas('', {
 - Track application sources, tests, build/dependency manifests and lockfiles, Maven wrappers, README.md, AGENTS.md and frontend/INSTRUCCIONES.md. Keep .gitignore and .gitattributes versioned.
 - FUNCIONAMIENTO-ARCA.md, GUIA-EXPOSICION.md, MEMORY.md, prueba.http and .vscode settings are personal local files: keep them on disk and ignored, and do not link to them from published documentation.
 - Remove accidentally tracked local files with git rm --cached, preserving their working copies. Publish cleanup commits normally; do not force-push or rewrite history.
+
+## Initial sample submission and validation (2026-11-18)
+- EmisionMuestrasInicialesRunner runs after DataInitializer and is enabled by default (matchIfMissing=true). Set facturacion.datos-iniciales.emitir-arca=false to disable sample submission; this is separate from the optional facturacion.arca-test.enabled diagnostic.
+- Only pending active SIMULADO samples are submitted through FacturaService.emitirMuestraInicial. Each result commits separately; confirmed rejection allows the batch to continue and ERROR_AFIP stops the current batch without retrying that record. Later startups may process remaining pending samples, never already processed ones.
+- Keep sample submission explicitly disabled in every full application-context test. Runner unit tests use mocks and cover default activation, explicit disablement, rejection continuation, uncertain-result stopping and no resubmission.
+- Validation on 2026-11-18: Maven test completed with 106 tests, zero failures/errors and one skipped; npm test compiled TypeScript and passed 7 tests. Browser scenarios were not rerun; retain the dated 2026-11-14 browser result as historical evidence.

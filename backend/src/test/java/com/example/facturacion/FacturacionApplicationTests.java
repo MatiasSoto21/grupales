@@ -32,6 +32,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 
 @SpringBootTest(properties = {
+        "facturacion.datos-iniciales.emitir-arca=false",
         "facturacion.arca-test.enabled=false", "debug=false",
         "logging.level.root=WARN", "logging.level.org.springframework=WARN", "logging.level.org.hibernate=WARN",
         "facturacion.comprobante.emisor.denominacion=Emisor de pruebas",

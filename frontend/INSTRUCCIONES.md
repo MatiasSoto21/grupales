@@ -27,3 +27,9 @@ Ultima validacion: 7 pruebas de logica/API/proxy y 64 escenarios de navegador ap
 Los recorridos contra un backend real son opt-in; RUN_WRITING_TESTS=1 puede crear registros y solicitar autorizaciones de homologacion. No habilitarlo para una comprobacion ordinaria. Ver ../README.md.
 
 No se versionan node_modules, dist, reportes Playwright ni evidencia local. npm start compila TypeScript antes de servir la aplicacion.
+
+## Verificación del 18/11/2026
+
+npm test volvió a compilar TypeScript y aprobó las 7 pruebas de lógica/API/proxy. Los 64 escenarios de navegador indicados arriba conservan la fecha del 14/11/2026; no se repitieron en esta verificación.
+
+El arranque normal del backend ahora procesa las muestras iniciales pendientes en ARCA homologación. Para trabajar sin ese envío inicial, iniciar el backend con --facturacion.datos-iniciales.emitir-arca=false. Esta opción no impide una emisión fiscal solicitada expresamente desde el formulario. Ver la comprobación inicial en [README.md](../README.md).
